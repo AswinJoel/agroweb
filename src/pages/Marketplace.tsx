@@ -22,6 +22,129 @@ interface Product {
   reviewsCount: number;
 }
 
+const DEFAULT_PRODUCTS: Product[] = [
+  {
+    id: "yield-1",
+    name: "Allahabad Safeda Guava",
+    description: "Creamy white flesh, extremely sweet with a smooth skin. High in Vitamin C and fiber.",
+    price: 95,
+    category: "Fruits",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1536657464919-892534f60d6e?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f1",
+    rating: 4.8,
+    reviewsCount: 124
+  },
+  {
+    id: "yield-2",
+    name: "Icebox Watermelon",
+    description: "Deep red, crunchy and incredibly hydrating. Perfect for summer coolers.",
+    price: 45,
+    category: "Fruits",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f2",
+    rating: 4.7,
+    reviewsCount: 89
+  },
+  {
+    id: "yield-3",
+    name: "Shimla Royal Gala Apples",
+    description: "Crunchy, sweet and aromatic apples direct from the orchards of Himachal Pradesh.",
+    price: 220,
+    category: "Fruits",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f1",
+    rating: 4.9,
+    reviewsCount: 312
+  },
+  {
+    id: "yield-4",
+    name: "English Green Cucumber",
+    description: "Refreshing and crunchy cucumbers. Ideal for salads and detox water.",
+    price: 50,
+    category: "Vegetables",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1449333254714-23eef896346a?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f3",
+    rating: 4.5,
+    reviewsCount: 56
+  },
+  {
+    id: "yield-5",
+    name: "Nagpur Seedless Oranges",
+    description: "World-famous juicy and tangy Nagpur oranges. Rich in antioxidants.",
+    price: 115,
+    category: "Fruits",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1582979512210-99b6a53386f9?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f2",
+    rating: 4.8,
+    reviewsCount: 178
+  },
+  {
+    id: "yield-6",
+    name: "Robusta Yellow Bananas",
+    description: "Naturally ripened sweet bananas. A quick energy booster for any time of the day.",
+    price: 70,
+    category: "Fruits",
+    unit: "dozen",
+    imageUrl: "https://images.unsplash.com/photo-1603833665858-e61d17a86224?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f4",
+    rating: 4.6,
+    reviewsCount: 245
+  },
+  {
+    id: "yield-7",
+    name: "Farm Fresh Green Beans",
+    description: "Freshly harvested, crisp and stringless beans. High in protein and vitamins.",
+    price: 85,
+    category: "Vegetables",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1567375639073-20f580234032?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f1",
+    rating: 4.7,
+    reviewsCount: 92
+  },
+  {
+    id: "yield-8",
+    name: "Organic Russet Potatoes",
+    description: "Earthy and versatile potatoes. Perfect for mashing, frying or baking.",
+    price: 40,
+    category: "Vegetables",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1518977676601-b53f02ac6d31?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f3",
+    rating: 4.5,
+    reviewsCount: 432
+  },
+  {
+    id: "yield-9",
+    name: "Sharp Red Onions",
+    description: "Strong flavored and crunchy red onions. Essential for every Indian kitchen.",
+    price: 55,
+    category: "Vegetables",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f2",
+    rating: 4.6,
+    reviewsCount: 567
+  },
+  {
+    id: "yield-10",
+    name: "Hybrid Vine Tomatoes",
+    description: "Fleshy and juicy tomatoes. Hand-picked at peak ripeness for best flavor.",
+    price: 45,
+    category: "Vegetables",
+    unit: "kg",
+    imageUrl: "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?auto=format&fit=crop&q=80&w=800",
+    farmerId: "f1",
+    rating: 4.9,
+    reviewsCount: 890
+  }
+];
+
 export default function Marketplace() {
   const { addToCart } = useCart();
   const [showToast, setShowToast] = useState<string | null>(null);
@@ -55,131 +178,7 @@ export default function Marketplace() {
       setLoading(true);
       setError(null);
       try {
-        // 1. Local Harvest (The 10 specific products requested)
-        const localHarvest: Product[] = [
-          {
-            id: "yield-1",
-            name: "Allahabad Safeda Guava",
-            description: "Creamy white flesh, extremely sweet with a smooth skin. High in Vitamin C and fiber.",
-            price: 85,
-            category: "Fruits",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1536657464919-892534f60d6e?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f1",
-            rating: 4.8,
-            reviewsCount: 124
-          },
-          {
-            id: "yield-2",
-            name: "Seedless Watermelon",
-            description: "Deep red, crunchy and incredibly hydrating. Perfect for summer coolers.",
-            price: 40,
-            category: "Fruits",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f2",
-            rating: 4.7,
-            reviewsCount: 89
-          },
-          {
-            id: "yield-3",
-            name: "Shimla Royal Apples",
-            description: "Crunchy, sweet and aromatic apples direct from the orchards of Himachal Pradesh.",
-            price: 185,
-            category: "Fruits",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f1",
-            rating: 4.9,
-            reviewsCount: 312
-          },
-          {
-            id: "yield-4",
-            name: "Crisp Green Cucumber",
-            description: "Refreshing and crunchy cucumbers. Ideal for salads and detox water.",
-            price: 45,
-            category: "Vegetables",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1449333254714-23eef896346a?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f3",
-            rating: 4.5,
-            reviewsCount: 56
-          },
-          {
-            id: "yield-5",
-            name: "Nagpur Oranges",
-            description: "World-famous juicy and tangy Nagpur oranges. Rich in antioxidants.",
-            price: 110,
-            category: "Fruits",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1582979512210-99b6a53386f9?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f2",
-            rating: 4.8,
-            reviewsCount: 178
-          },
-          {
-            id: "yield-6",
-            name: "Robusta Bananas",
-            description: "Naturally ripened sweet bananas. A quick energy booster for any time of the day.",
-            price: 65,
-            category: "Fruits",
-            unit: "dozen",
-            imageUrl: "https://images.unsplash.com/photo-1603833665858-e61d17a86224?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f4",
-            rating: 4.6,
-            reviewsCount: 245
-          },
-          {
-            id: "yield-7",
-            name: "Tender Green Beans",
-            description: "Freshly harvested, crisp and stringless beans. High in protein and vitamins.",
-            price: 80,
-            category: "Vegetables",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1567375639073-20f580234032?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f1",
-            rating: 4.7,
-            reviewsCount: 92
-          },
-          {
-            id: "yield-8",
-            name: "Organic Russet Potatoes",
-            description: "Earthy and versatile potatoes. Perfect for mashing, frying or baking.",
-            price: 35,
-            category: "Vegetables",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1518977676601-b53f02ac6d31?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f3",
-            rating: 4.5,
-            reviewsCount: 432
-          },
-          {
-            id: "yield-9",
-            name: "Sharp Red Onions",
-            description: "Strong flavored and crunchy red onions. Essential for every Indian kitchen.",
-            price: 55,
-            category: "Vegetables",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f2",
-            rating: 4.6,
-            reviewsCount: 567
-          },
-          {
-            id: "yield-10",
-            name: "Roma Sun-ripened Tomatoes",
-            description: "Fleshy and juicy tomatoes. Hand-picked at peak ripeness for best flavor.",
-            price: 40,
-            category: "Vegetables",
-            unit: "kg",
-            imageUrl: "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?auto=format&fit=crop&q=80&w=1000",
-            farmerId: "f1",
-            rating: 4.9,
-            reviewsCount: 890
-          }
-        ];
-
-        // 2. Fetch from External API
+        // 1. Fetch from External API
         let apiProducts: Product[] = [];
         try {
           const response = await fetch(`${API_BASE_URL}/products`);
@@ -188,10 +187,10 @@ export default function Marketplace() {
             apiProducts = Array.isArray(data) ? data : (data.products || []);
           }
         } catch (apiErr) {
-          console.warn("External API unavailable, relying on local harvest.", apiErr);
+          console.warn("External API unavailable, using local defaults.", apiErr);
         }
 
-        // 3. Fetch from Firestore (Local Farmer Uploads)
+        // 2. Fetch from Firestore (Local Farmer Uploads)
         let firestoreProducts: Product[] = [];
         try {
           const q = query(collection(db, "products"));
@@ -202,15 +201,15 @@ export default function Marketplace() {
           } as Product));
         } catch (fsErr) {
           console.warn("Firestore products unavailable", fsErr);
-          // Don't call handleFirestoreError here as it throws and breaks the local harvest display
         }
 
-        const combinedProducts = [...apiProducts, ...localHarvest, ...firestoreProducts];
+        const combinedProducts = [...apiProducts, ...DEFAULT_PRODUCTS, ...firestoreProducts];
         setProducts(combinedProducts);
         setFilteredProducts(combinedProducts);
       } catch (err) {
         console.error("Combined Fetch Error:", err);
-        setError("Unable to load fresh harvest at the moment.");
+        setProducts(DEFAULT_PRODUCTS);
+        setFilteredProducts(DEFAULT_PRODUCTS);
       } finally {
         setLoading(false);
       }

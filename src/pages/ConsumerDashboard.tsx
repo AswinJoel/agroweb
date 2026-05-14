@@ -25,7 +25,7 @@ export default function ConsumerDashboard() {
     const unsub = onSnapshot(q, (snap) => {
       setRealOrders(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => {
-      handleFirestoreError(err, OperationType.GET, "orders");
+      console.warn("Consumer Dashboard Firestore Error:", err);
     });
     return unsub;
   }, [user]);

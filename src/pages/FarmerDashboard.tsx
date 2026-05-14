@@ -22,9 +22,10 @@ export default function FarmerDashboard() {
     if (!profile?.uid) return;
     const q = query(collection(db, "products"), where("farmerId", "==", profile.uid));
     const unsub = onSnapshot(q, (snap) => {
+      console.log(`Farmer Dashboard: Received ${snap.size} products from Firestore`);
       setProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => {
-      handleFirestoreError(err, OperationType.GET, "products");
+      console.warn("Farmer Dashboard Firestore Error:", err);
     });
     return unsub;
   }, [profile]);
