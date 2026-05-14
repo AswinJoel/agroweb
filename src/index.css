@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Helvetica Neue", Arial, ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-mono: "JetBrains Mono", monospace;
+  
+  --color-brand-primary: #1f3a0d;
+  --color-brand-secondary: #4CAF50;
+  --color-brand-accent: #A5D6A7;
+  --color-brand-bg: #F5FFF5;
+}
+
+@layer base {
+  body {
+    @apply bg-brand-bg text-[#1B1B1B] font-sans antialiased selection:bg-brand-secondary selection:text-white;
+  }
+  
+  h1, h2, h3 {
+    @apply font-sans font-bold tracking-[-0.05em] leading-[0.95];
+  }
+  
+  h4, h5, h6 {
+    @apply font-sans font-semibold tracking-tight;
+  }
+}
+
+.glass {
+  @apply bg-white/40 backdrop-blur-xl border border-white/20 rounded-[24px];
+}
+
+.btn-primary {
+  @apply bg-brand-primary text-brand-bg px-7 py-3 rounded-full font-semibold transition-all hover:scale-[1.02] hover:shadow-xl active:scale-95 text-sm;
+}
+
+.btn-secondary {
+  @apply bg-transparent text-brand-primary border border-brand-primary/10 px-7 py-3 rounded-full font-semibold transition-all hover:bg-brand-primary/5 active:scale-95 text-sm;
+}
+
+.editorial-card {
+  @apply bg-white rounded-[32px] p-8 border border-brand-primary/5 shadow-sm hover:shadow-md transition-shadow;
+}
+
+.nav-link {
+  @apply text-sm font-medium tracking-[0.02em] hover:text-brand-secondary transition-colors;
+}
+
+.accent-text {
+  @apply text-brand-secondary font-bold;
+}
+
+.stat-card {
+  @apply p-6 border-r border-brand-primary/10 last:border-0;
+}
+

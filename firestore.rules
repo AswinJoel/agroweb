@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isVerifiedEmail() { return request.auth.token.email_verified == true; }
+    function isAdmin() { return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)); }
+    
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    
+    function isFarmer() {
+      return isSignedIn() && getUserData(request.auth.uid).role == 'farmer';
+    }
+    
+    function isVerifiedFarmer() {
+      return isFarmer() && getUserData(request.auth.uid).isVerified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Users Collection ---
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      function isValidUser(data) {
+        return data.uid == request.auth.uid 
+          && data.email is string && data.email.size() <= 256
+          && data.role in ['farmer', 'consumer', 'admin']
+          && data.isVerified is bool;
+      }
+
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      
+      // Only admins can update role or verification status
+      allow update: if (isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.isVerified == resource.data.isVerified)
+                   || isAdmin();
+    }
+
+    // --- Admins Register ---
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+    }
+
+    // --- Products Collection ---
+    match /products/{productId} {
+      allow read: if true; // Public marketplace
+      
+      function isValidProduct(data) {
+        return data.farmerId == request.auth.uid
+          && data.name is string && data.name.size() <= 100
+          && data.price is number && data.price >= 0
+          && data.quantity is number && data.quantity >= 0;
+      }
+
+      allow create: if isVerifiedFarmer() && isValidProduct(request.resource.data);
+      allow update: if isVerifiedFarmer() && resource.data.farmerId == request.auth.uid && isValidProduct(request.resource.data);
+      allow delete: if isAdmin() || (isVerifiedFarmer() && resource.data.farmerId == request.auth.uid);
+    }
+
+    // --- Orders Collection ---
+    match /orders/{orderId} {
+      allow create: if isSignedIn(); // Any signed in user can buy
+      allow read: if isSignedIn() && (resource.data.consumerId == request.auth.uid || isAdmin());
+      allow update: if isAdmin();
+    }
+
+    // --- Predictions Collection ---
+    match /predictions/{predictionId} {
+      allow create: if isSignedIn();
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+    }
+  }
+}

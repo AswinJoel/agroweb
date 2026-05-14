@@ -1,0 +1,12 @@
+{
+  "name": "AgroConnect",
+  "description": "Smart AI-powered agricultural e-commerce platform connecting farmers directly to consumers with integrated crop disease detection.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "AI Vision",
+    "E-commerce",
+    "Real-time Dashboards"
+  ]
+}

@@ -1,0 +1,87 @@
+/**
+ * Defines the structure of the FirebaseBlueprint configuration for AgroConnect.
+ */
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with role-based access",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["farmer", "consumer", "admin"] },
+        "isVerified": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Agricultural product listed by a farmer",
+      "type": "object",
+      "properties": {
+        "farmerId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "quantity": { "type": "number" },
+        "unit": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["farmerId", "name", "price", "category"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Purchase order from a consumer",
+      "type": "object",
+      "properties": {
+        "consumerId": { "type": "string" },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "shipped", "delivered", "cancelled"] },
+        "shippingAddress": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["consumerId", "items", "total", "status"]
+    },
+    "DiseasePrediction": {
+      "title": "DiseasePrediction",
+      "description": "AI-generated crop disease detection record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "diseaseName": { "type": "string" },
+        "confidence": { "type": "number" },
+        "treatment": { "type": "string" },
+        "prevention": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "imageUrl", "diseaseName"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "products/{productId}": {
+      "schema": "Product",
+      "description": "Marketplace products"
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Consumer orders"
+    },
+    "predictions/{predictionId}": {
+      "schema": "DiseasePrediction",
+      "description": "AI crop disease scan history"
+    }
+  }
+}
