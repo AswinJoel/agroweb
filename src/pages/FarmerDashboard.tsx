@@ -10,10 +10,24 @@ import { cn, formatCurrency } from "../lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { getFarmerAssistantResponse } from "../services/aiService";
 import ReactMarkdown from "react-markdown";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 
 export default function FarmerDashboard() {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [products, setProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!profile?.uid) return;
+    const q = query(collection(db, "products"), where("farmerId", "==", profile.uid));
+    const unsub = onSnapshot(q, (snap) => {
+      setProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, "products");
+    });
+    return unsub;
+  }, [profile]);
   const [assistantInput, setAssistantInput] = useState("");
   const [assistantMessages, setAssistantMessages] = useState<{ role: 'user' | 'bot', content: string }[]>([
     { role: 'bot', content: "Hello! I'm your AI Agricultural Assistant. How can I help you manage your farm or inventory today?" }
@@ -41,11 +55,47 @@ export default function FarmerDashboard() {
     setIsTyping(false);
   };
 
+  const [uploading, setUploading] = useState(false);
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    price: "",
+    stock: "",
+    category: "Vegetables",
+    imageUrl: ""
+  });
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProduct.name || !newProduct.price || !profile?.uid) return;
+    
+    setUploading(true);
+    try {
+      await addDoc(collection(db, "products"), {
+        ...newProduct,
+        price: parseFloat(newProduct.price),
+        stockAmount: newProduct.stock,
+        farmerId: profile.uid,
+        farmerName: profile.name,
+        rating: 5.0,
+        reviewsCount: 0,
+        createdAt: serverTimestamp(),
+        unit: 'kg' // Default unit
+      });
+      alert("Harvest uploaded successfully!");
+      setNewProduct({ name: "", price: "", stock: "", category: "Vegetables", imageUrl: "" });
+      setActiveTab('overview');
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, "products");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const stats = [
-    { label: "Total Sales", value: "$0", trend: null, icon: TrendingUp },
-    { label: "Active Products", value: "0", icon: Package },
+    { label: "Total Sales", value: "₹0", trend: null, icon: TrendingUp },
+    { label: "Active Products", value: products.length.toString(), icon: Package },
     { label: "Total Orders", value: "0", icon: List },
-    { label: "Rating", value: "0.0", icon: BarChart3 },
+    { label: "Rating", value: "5.0", icon: BarChart3 },
   ];
 
   const data = [
@@ -104,7 +154,10 @@ export default function FarmerDashboard() {
             <h1 className="text-4xl font-bold text-brand-primary tracking-tight">Farmer Dashboard.</h1>
             <p className="text-gray-500 text-sm italic font-medium">Welcome back, {profile?.name || "Farmer"}</p>
           </div>
-          <button className="btn-primary flex items-center gap-2">
+          <button 
+            onClick={() => setActiveTab('inventory')}
+            className="btn-primary flex items-center gap-2"
+          >
             <Plus className="size-4" />
             Add New Product
           </button>
@@ -209,7 +262,7 @@ export default function FarmerDashboard() {
                   <h3 className="text-xl font-bold text-brand-primary italic">Top Products</h3>
                   <div className="space-y-8">
                     {[].length > 0 ? (
-                      [{ name: "Red Tomatoes", sales: 120, stock: "45kg", price: "$4.50" }].map((prod: any, i: number) => (
+                      [{ name: "Red Tomatoes", sales: 120, stock: "45kg", price: "₹40" }].map((prod: any, i: number) => (
                         <div key={i} className="flex items-center justify-between group">
                           {/* ... existing item code ... */}
                         </div>
@@ -224,6 +277,127 @@ export default function FarmerDashboard() {
                     )}
                   </div>
                   <button onClick={() => setActiveTab('inventory')} className="w-full btn-secondary text-xs uppercase tracking-widest py-4 bg-brand-bg/50 border-brand-primary/10">View Full Inventory</button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'inventory' && (
+            <motion.div 
+              key="inventory"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="space-y-8"
+            >
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Upload Form */}
+                <div className="editorial-card space-y-8 !p-10 shadow-xl">
+                  <div className="flex items-center gap-4 border-b border-brand-primary/5 pb-6">
+                    <div className="size-12 bg-brand-primary text-white rounded-2xl flex items-center justify-center">
+                       <Plus className="size-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-brand-primary italic">List Your Yield.</h3>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">Direct to Customer</p>
+                    </div>
+                  </div>
+
+                  <form className="space-y-6" onSubmit={handleUpload}>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Product Name</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={newProduct.name}
+                          onChange={e => setNewProduct({...newProduct, name: e.target.value})}
+                          placeholder="e.g. Organic Red Tomatoes" 
+                          className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Price (₹ per unit)</label>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            required
+                            value={newProduct.price}
+                            onChange={e => setNewProduct({...newProduct, price: e.target.value})}
+                            placeholder="40" 
+                            className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Stock Amount</label>
+                          <input 
+                            type="text" 
+                            required
+                            value={newProduct.stock}
+                            onChange={e => setNewProduct({...newProduct, stock: e.target.value})}
+                            placeholder="100kg" 
+                            className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Category</label>
+                         <select 
+                            value={newProduct.category}
+                            onChange={e => setNewProduct({...newProduct, category: e.target.value})}
+                            className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium outline-none"
+                         >
+                            <option>Vegetables</option>
+                            <option>Fruits</option>
+                            <option>Grains</option>
+                            <option>Dairy</option>
+                         </select>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Product Image URL</label>
+                        <input 
+                          type="text" 
+                          required
+                          value={newProduct.imageUrl}
+                          onChange={e => setNewProduct({...newProduct, imageUrl: e.target.value})}
+                          placeholder="https://images.unsplash.com/photo-..." 
+                          className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
+                        />
+                      </div>
+                    </div>
+                    <button 
+                      type="submit"
+                      disabled={uploading}
+                      className="w-full btn-primary py-5 rounded-2xl flex items-center justify-center gap-3 font-bold text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 duration-200 disabled:opacity-50"
+                    >
+                       {uploading ? <Loader2 className="animate-spin size-4" /> : "Upload Harvest to Market"} <Send className="size-4" />
+                    </button>
+                  </form>
+                </div>
+
+                {/* Live Preview / Empty State */}
+                <div className="space-y-8">
+                   <div className="editorial-card !p-0 overflow-hidden group border-dashed border-gray-400">
+                      <div className="aspect-video bg-gray-100 flex flex-col items-center justify-center text-gray-400 space-y-4">
+                         <ShoppingBag className="size-12 opacity-20" />
+                         <p className="text-[10px] font-bold uppercase tracking-widest">Live Listing Preview</p>
+                      </div>
+                      <div className="p-8 space-y-4">
+                         <div className="h-6 bg-gray-100 rounded-lg w-2/3 animate-pulse" />
+                         <div className="h-4 bg-gray-50 rounded-lg w-1/2 animate-pulse" />
+                         <div className="pt-4 flex justify-between items-center">
+                            <div className="h-8 bg-gray-100 rounded-full w-20 animate-pulse" />
+                            <div className="size-10 bg-gray-100 rounded-full animate-pulse" />
+                         </div>
+                      </div>
+                   </div>
+                   
+                   <div className="bg-brand-bg p-8 rounded-[2.5rem] border border-brand-primary/5 space-y-4">
+                      <h4 className="font-bold text-brand-primary italic">Pro Tip.</h4>
+                      <p className="text-sm text-gray-500 leading-relaxed italic">
+                        High-quality photos from your actual field increase customer trust by **40%**. Make sure to mention if your crop is organic!
+                      </p>
+                   </div>
                 </div>
               </div>
             </motion.div>

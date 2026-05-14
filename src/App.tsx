@@ -9,6 +9,7 @@ import DiseaseDetection from "./pages/DiseaseDetection";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import DashboardRedirect from "./pages/DashboardRedirect";
+import Login from "./pages/Login";
 import FarmerDashboard from "./pages/FarmerDashboard";
 import ConsumerDashboard from "./pages/ConsumerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -23,7 +24,7 @@ function ProtectedRoute({ children, role }: { children: React.ReactNode, role?: 
   const { user, profile, loading } = useAuth();
 
   if (loading) return <div className="h-screen flex items-center justify-center font-serif italic text-brand-primary">Loading AgroConnect...</div>;
-  if (!user) return <Navigate to="/" />;
+  if (!user) return <Navigate to="/login" />;
   if (role && profile?.role !== role && profile?.role !== 'admin') return <Navigate to="/dashboard" />;
 
   return <>{children}</>;
@@ -39,6 +40,7 @@ export default function App() {
             <main className="flex-grow">
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/about" element={<About />} />
               <Route path="/marketplace" element={<Marketplace />} />
               <Route path="/cart" element={<Cart />} />

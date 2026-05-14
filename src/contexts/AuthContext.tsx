@@ -22,7 +22,7 @@ interface AuthContextType {
   user: FirebaseUser | null;
   profile: UserProfile | null;
   loading: boolean;
-  signIn: () => Promise<void>;
+  signIn: (intendedRole?: 'farmer' | 'consumer') => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -37,37 +37,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        // Fetch or create user profile
         const userDocRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
         
         if (userDoc.exists()) {
           setProfile(userDoc.data() as UserProfile);
-        } else {
-            // Check if this is the bootstrapped admin
-            const isAdminUser = user.email === 'aswinjoel04@gmail.com';
-            
-            const newProfile: UserProfile = {
-              uid: user.uid,
-              email: user.email,
-              name: user.displayName,
-              role: isAdminUser ? 'admin' : 'consumer',
-              // Admins and Consumers start verified, Farmers need verification later
-              isVerified: isAdminUser ? true : true, // Set to true for consumer/admin by default
-              createdAt: new Date().toISOString()
-            };
-          
-          // Actually, let's make the role choice explicit in a real setup.
-          // For this demo, let's keep it as is but ensure isVerified logic hits correctly if they choose farmer later.
-          // I will modify the profile creation to default to consumer, and farmers will be updated via a settings page.
-          
-          await setDoc(userDocRef, newProfile);
-          
-          if (isAdminUser) {
-            await setDoc(doc(db, 'admins', user.uid), { active: true });
-          }
-          
-          setProfile(newProfile);
         }
       } else {
         setProfile(null);
@@ -78,9 +52,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const signIn = async () => {
+  const signIn = async (intendedRole: 'farmer' | 'consumer' = 'consumer') => {
     const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+
+    const userDocRef = doc(db, 'users', user.uid);
+    const userDoc = await getDoc(userDocRef);
+
+    if (!userDoc.exists()) {
+      const isAdminUser = user.email === 'aswinjoel04@gmail.com';
+      const newProfile: UserProfile = {
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName,
+        role: isAdminUser ? 'admin' : intendedRole,
+        isVerified: true,
+        createdAt: new Date().toISOString()
+      };
+      await setDoc(userDocRef, newProfile);
+      
+      if (isAdminUser) {
+        await setDoc(doc(db, 'admins', user.uid), { active: true });
+      }
+      
+      setProfile(newProfile);
+    } else {
+      setProfile(userDoc.data() as UserProfile);
+    }
   };
 
   const logout = async () => {

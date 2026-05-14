@@ -6,7 +6,7 @@ import { formatCurrency, cn } from "../lib/utils";
 import { useState, useEffect } from "react";
 import { getProductRecommendations, Recommendation } from "../services/aiService";
 import { collection, query, where, onSnapshot, orderBy, updateDoc, doc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 
 export default function ConsumerDashboard() {
   const { profile, user } = useAuth();
@@ -19,11 +19,13 @@ export default function ConsumerDashboard() {
     if (!user) return;
     const q = query(
       collection(db, "orders"), 
-      where("userId", "==", user.uid),
+      where("consumerId", "==", user.uid),
       orderBy("createdAt", "desc")
     );
     const unsub = onSnapshot(q, (snap) => {
       setRealOrders(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, "orders");
     });
     return unsub;
   }, [user]);

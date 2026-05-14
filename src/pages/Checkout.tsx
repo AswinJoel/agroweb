@@ -125,11 +125,9 @@ export default function Checkout() {
            <div className="space-y-2">
               <h1 className="text-4xl font-bold tracking-tight text-brand-primary italic">Checkout.</h1>
               <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">
-                <span className={cn(step >= 1 ? "text-brand-secondary" : "")}>Details</span>
+                <span className={cn(step === 1 ? "text-brand-secondary" : "")}>Address & Location</span>
                 <ChevronRight className="size-3" />
-                <span className={cn(step >= 2 ? "text-brand-secondary" : "")}>Payment</span>
-                <ChevronRight className="size-3" />
-                <span className={cn(step >= 3 ? "text-brand-secondary" : "")}>Success</span>
+                <span className={cn(step === 2 ? "text-brand-secondary" : "")}>Payment Method</span>
               </div>
            </div>
 

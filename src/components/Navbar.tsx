@@ -68,9 +68,9 @@ export default function Navbar() {
             </div>
           </div>
         ) : (
-          <button onClick={signIn} className="btn-primary py-1.5 h-auto text-sm">
+          <Link to="/login" className="btn-primary py-1.5 h-auto text-sm">
             Sign In
-          </button>
+          </Link>
         )}
       </div>
       <CartSidebar isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
