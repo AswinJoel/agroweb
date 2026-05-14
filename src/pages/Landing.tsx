@@ -5,9 +5,9 @@ import { cn } from "../lib/utils";
 
 export default function Landing() {
   const stats = [
-    { label: "Connected Farmers", value: "2.5k+", icon: Users },
-    { label: "Orders Delivered", value: "15k+", icon: ShoppingBag },
-    { label: "AI Disease Scans", value: "50k+", icon: BrainCircuit },
+    { label: "Connected Farmers", value: "0+", icon: Users },
+    { label: "Orders Delivered", value: "0+", icon: ShoppingBag },
+    { label: "AI Disease Scans", value: "0+", icon: BrainCircuit },
   ];
 
   const features = [
@@ -166,7 +166,7 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           <div className="text-center max-w-2xl mx-auto mb-20 space-y-4">
             <h2 className="text-4xl md:text-5xl font-bold text-brand-primary italic">Innovation Meets Earth</h2>
-            <p className="text-gray-600">We combining centuries of agricultural wisdom with modern artificial intelligence to build a sustainable food system for everyone.</p>
+            <p className="text-gray-600">We are combining centuries of agricultural wisdom with modern artificial intelligence to build a sustainable food system for everyone.</p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -201,15 +201,8 @@ export default function Landing() {
             Join thousands of successful farmers and start selling your products directly to millions of customers.
           </p>
           <div className="flex justify-center gap-4">
-            <button className="btn-primary py-4 px-10">Register as Farmer</button>
-            <button className="btn-secondary py-4 px-10">Browse Market</button>
-          </div>
-          
-          <div className="pt-8 grid grid-cols-2 md:grid-cols-4 gap-4 opacity-50 grayscale transition-all hover:grayscale-0">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" className="h-6 mx-auto" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Logo_TV_2015.svg/1200px-Logo_TV_2015.svg.png" className="h-6 mx-auto" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/IBM_logo.svg" className="h-6 mx-auto" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/b/bd/Tesla_Motors.svg" className="h-6 mx-auto" />
+            <Link to="/farmer-dashboard" className="btn-primary py-4 px-10">Register as Farmer</Link>
+            <Link to="/marketplace" className="btn-secondary py-4 px-10">Browse Market</Link>
           </div>
         </div>
       </section>

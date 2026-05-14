@@ -14,6 +14,8 @@ import ConsumerDashboard from "./pages/ConsumerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import Tracking from "./pages/Tracking";
 import Checkout from "./pages/Checkout";
+import OrderConfirmation from "./pages/OrderConfirmation";
+import Cart from "./pages/Cart";
 import AgentDashboard from "./pages/AgentDashboard";
 import ChatBot from "./components/ChatBot";
 
@@ -39,6 +41,7 @@ export default function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/about" element={<About />} />
               <Route path="/marketplace" element={<Marketplace />} />
+              <Route path="/cart" element={<Cart />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/disease-detection" element={<DiseaseDetection />} />
               
@@ -50,7 +53,8 @@ export default function App() {
               {/* Delivery & GPS */}
               <Route path="/order-tracking/:orderId" element={<ProtectedRoute><Tracking /></ProtectedRoute>} />
               <Route path="/delivery-agent" element={<ProtectedRoute><AgentDashboard /></ProtectedRoute>} />
-              <Route path="/checkout" element={<ProtectedRoute role="consumer"><Checkout /></ProtectedRoute>} />
+              <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+              <Route path="/order-confirmation/:orderId" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
 
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

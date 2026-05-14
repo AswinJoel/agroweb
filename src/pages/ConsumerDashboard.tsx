@@ -31,7 +31,7 @@ export default function ConsumerDashboard() {
   useEffect(() => {
     async function loadAI() {
       try {
-        const recs = await getProductRecommendations("consumer", ["Honey", "Bread"], ["Tomatoes", "Milk"]);
+        const recs = await getProductRecommendations("consumer", [], []);
         setRecommendations(recs);
       } catch (e) {
         console.error(e);
@@ -190,23 +190,9 @@ export default function ConsumerDashboard() {
                <Star className="size-4 text-yellow-400 fill-yellow-400" />
              </div>
              <div className="space-y-6">
-               {[
-                 { name: "Organic Honey", price: "$12.00", farm: "Wild Bee Estates" },
-                 { name: "Sourdough Bread", price: "$5.50", farm: "Heritage Bakes" }
-               ].map((item, i) => (
-                 <div key={i} className="flex items-center justify-between group cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <div className="size-10 bg-gray-50 rounded-xl flex items-center justify-center grayscale group-hover:grayscale-0 transition-all overflow-hidden border border-gray-100">
-                        <img src={`https://picsum.photos/seed/${item.name}/100/100`} className="w-full h-full object-cover" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-gray-800">{item.name}</p>
-                        <p className="text-[10px] text-gray-400 italic flex items-center gap-1"><MapPin className="size-2" /> {item.farm}</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-bold text-brand-primary">{item.price}</span>
-                 </div>
-               ))}
+               <div className="py-8 text-center bg-gray-50 rounded-3xl border border-dashed border-gray-200">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No recommendations yet</p>
+               </div>
                <button className="w-full btn-secondary text-xs py-3 border-dashed border-gray-300">Browse Suggestions</button>
              </div>
            </div>

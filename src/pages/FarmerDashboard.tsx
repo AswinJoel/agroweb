@@ -42,20 +42,20 @@ export default function FarmerDashboard() {
   };
 
   const stats = [
-    { label: "Total Sales", value: "$4,250", trend: "+12.5%", icon: TrendingUp },
-    { label: "Active Products", value: "12", icon: Package },
-    { label: "Total Orders", value: "48", icon: List },
-    { label: "Rating", value: "4.8", icon: BarChart3 },
+    { label: "Total Sales", value: "$0", trend: null, icon: TrendingUp },
+    { label: "Active Products", value: "0", icon: Package },
+    { label: "Total Orders", value: "0", icon: List },
+    { label: "Rating", value: "0.0", icon: BarChart3 },
   ];
 
   const data = [
-    { name: "Mon", sales: 400 },
-    { name: "Tue", sales: 300 },
-    { name: "Wed", sales: 600 },
-    { name: "Thu", sales: 800 },
-    { name: "Fri", sales: 500 },
-    { name: "Sat", sales: 900 },
-    { name: "Sun", sales: 1100 },
+    { name: "Mon", sales: 0 },
+    { name: "Tue", sales: 0 },
+    { name: "Wed", sales: 0 },
+    { name: "Thu", sales: 0 },
+    { name: "Fri", sales: 0 },
+    { name: "Sat", sales: 0 },
+    { name: "Sun", sales: 0 },
   ];
 
   return (
@@ -208,29 +208,22 @@ export default function FarmerDashboard() {
                 <div className="editorial-card space-y-8">
                   <h3 className="text-xl font-bold text-brand-primary italic">Top Products</h3>
                   <div className="space-y-8">
-                    {[
-                      { name: "Red Tomatoes", sales: 120, stock: "45kg", price: "$4.50" },
-                      { name: "Golden Wheat", sales: 85, stock: "200kg", price: "$12.00" },
-                      { name: "Cow Milk", sales: 64, stock: "15L", price: "$2.20" }
-                    ].map((prod, i) => (
-                      <div key={i} className="flex items-center justify-between group">
-                        <div className="flex items-center gap-5">
-                          <div className="size-12 bg-gray-100 rounded-2xl overflow-hidden grayscale group-hover:grayscale-0 transition-all duration-500 border border-gray-100">
-                             <img src={`https://picsum.photos/seed/${prod.name}/100/100`} alt="" className="w-full h-full object-cover" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-gray-800">{prod.name}</p>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{prod.sales} Sold</p>
-                          </div>
+                    {[].length > 0 ? (
+                      [{ name: "Red Tomatoes", sales: 120, stock: "45kg", price: "$4.50" }].map((prod: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between group">
+                          {/* ... existing item code ... */}
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold text-brand-primary">{prod.price}</p>
-                          <p className="text-[10px] text-brand-accent uppercase font-bold tracking-widest">{prod.stock} Left</p>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="py-12 text-center space-y-4">
+                         <div className="bg-brand-bg size-12 mx-auto rounded-full flex items-center justify-center">
+                            <ShoppingBag className="size-5 text-brand-primary/30" />
+                         </div>
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">No Sales recorded yet.</p>
                       </div>
-                    ))}
+                    )}
                   </div>
-                  <button className="w-full btn-secondary text-xs uppercase tracking-widest py-4 bg-brand-bg/50 border-brand-primary/10">View Full Inventory</button>
+                  <button onClick={() => setActiveTab('inventory')} className="w-full btn-secondary text-xs uppercase tracking-widest py-4 bg-brand-bg/50 border-brand-primary/10">View Full Inventory</button>
                 </div>
               </div>
             </motion.div>

@@ -3,10 +3,11 @@ import { useState, useEffect } from "react";
 import { collection, query, getDocs, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
-import { Search, Filter, ShoppingCart, Star, ChevronRight, X, Heart, Sparkles, Loader2, MapPin, ArrowRight, CreditCard } from "lucide-react";
+import { Search, Filter, ShoppingCart, Star, ChevronRight, X, Heart, Sparkles, Loader2, MapPin, ArrowRight, CreditCard, Leaf } from "lucide-react";
 import { cn, formatCurrency } from "../lib/utils";
 import { getProductRecommendations, Recommendation } from "../services/aiService";
 import { useCart } from "../contexts/CartContext";
+import { API_BASE_URL, PRODUCT_CATEGORIES } from "../constants";
 
 interface Product {
   id: string;
@@ -23,17 +24,56 @@ interface Product {
 
 export default function Marketplace() {
   const { addToCart } = useCart();
+  const [showToast, setShowToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (showToast) {
+      const timer = setTimeout(() => setShowToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showToast]);
+
+  const handleAddToCart = (product: Product) => {
+    addToCart(product);
+    setShowToast(`${product.name} added to your harvest basket!`);
+  };
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("All");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loadingAI, setLoadingAI] = useState(true);
 
-  const categories = ["All", "Vegetables", "Fruits", "Grains", "Organic", "Dairy", "Tubers"];
+  const categories = PRODUCT_CATEGORIES;
+
+  useEffect(() => {
+    async function fetchProducts() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`${API_BASE_URL}/products`);
+        if (!response.ok) throw new Error("Failed to fetch products");
+        const data = await response.json();
+        // Ensure data is an array
+        const productsList = Array.isArray(data) ? data : (data.products || []);
+        setProducts(productsList);
+        setFilteredProducts(productsList);
+      } catch (err) {
+        console.error("API Fetch Error:", err);
+        setError("Unable to load fresh harvest at the moment.");
+        // We set to empty array on error as requested: "Remove ALL fake data... Replace with empty states"
+        setProducts([]);
+        setFilteredProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchProducts();
+  }, []);
 
   useEffect(() => {
     async function loadAI() {
@@ -49,90 +89,6 @@ export default function Marketplace() {
     loadAI();
   }, []);
 
-  const dummyProducts: Product[] = [
-    {
-      id: "prod-1",
-      name: "Fresh Navel Oranges",
-      description: "Thick-skinned, sweet, and juicy navel oranges. Perfect for fresh morning juice or a healthy snack.",
-      price: 3.5,
-      category: "Fruits",
-      unit: "kg",
-      imageUrl: "https://images.unsplash.com/photo-1582979512210-99b6a53386f9?auto=format&fit=crop&q=80&w=1000",
-      farmerId: "f1",
-      rating: 4.8,
-      reviewsCount: 156
-    },
-    {
-      id: "prod-2",
-      name: "Premium Cavendish Bananas",
-      description: "Naturally ripened yellow bananas. Rich in potassium and perfect for smoothies or baking.",
-      price: 2.2,
-      category: "Fruits",
-      unit: "kg",
-      imageUrl: "https://images.unsplash.com/photo-1603833665858-e61d17a86224?auto=format&fit=crop&q=80&w=1000",
-      farmerId: "f2",
-      rating: 4.7,
-      reviewsCount: 243
-    },
-    {
-      id: "prod-3",
-      name: "Tender Green Beans",
-      description: "Freshly harvested crisp green beans. Tender, crunchy, and packed with vitamins.",
-      price: 4.0,
-      category: "Vegetables",
-      unit: "kg",
-      imageUrl: "https://images.unsplash.com/photo-1567375639073-20f580234032?auto=format&fit=crop&q=80&w=1000",
-      farmerId: "f1",
-      rating: 4.6,
-      reviewsCount: 88
-    },
-    {
-      id: "prod-4",
-      name: "Russet Potatoes",
-      description: "Versatile russet potatoes with a fluffy texture. Ideal for mashing, roasting, or making fries.",
-      price: 1.8,
-      category: "Tubers",
-      unit: "kg",
-      imageUrl: "https://images.unsplash.com/photo-1518977676601-b53f02ac6d31?auto=format&fit=crop&q=80&w=1000",
-      farmerId: "f3",
-      rating: 4.5,
-      reviewsCount: 112
-    },
-    {
-      id: "prod-5",
-      name: "Sharp Red Onions",
-      description: "Vibrant and flavorful red onions. Perfect for adding a zingy crunch to salads and sandwiches.",
-      price: 2.5,
-      category: "Vegetables",
-      unit: "kg",
-      imageUrl: "https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&q=80&w=1000",
-      farmerId: "f2",
-      rating: 4.4,
-      reviewsCount: 95
-    },
-    {
-      id: "prod-6",
-      name: "Roma Tomatoes",
-      description: "Deep red, firm Roma tomatoes. Hand-picked at peak ripeness, perfect for sauces or fresh salads.",
-      price: 3.2,
-      category: "Vegetables",
-      unit: "kg",
-      imageUrl: "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?auto=format&fit=crop&q=80&w=1000",
-      farmerId: "f1",
-      rating: 4.9,
-      reviewsCount: 310
-    }
-  ];
-
-  useEffect(() => {
-    // In real app, fetch from Firestore
-    // const q = query(collection(db, "products"));
-    // getDocs(q).then(...)
-    setProducts(dummyProducts);
-    setFilteredProducts(dummyProducts);
-    setLoading(false);
-  }, []);
-
   useEffect(() => {
     let result = products;
     if (activeCategory !== "All") {
@@ -143,6 +99,7 @@ export default function Marketplace() {
     }
     setFilteredProducts(result);
   }, [search, activeCategory, products]);
+
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -263,7 +220,7 @@ export default function Marketplace() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          addToCart(p);
+                          handleAddToCart(p);
                         }}
                         className="size-10 flex items-center justify-center bg-brand-secondary text-brand-primary rounded-full shadow-lg hover:scale-110 transition-all border-2 border-white"
                         title="Add to Basket"
@@ -307,14 +264,52 @@ export default function Marketplace() {
           </div>
         )}
 
+        <AnimatePresence>
+          {showToast && (
+            <motion.div 
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 bg-brand-primary text-white rounded-full shadow-2xl flex items-center gap-3 font-bold text-xs italic tracking-tight"
+            >
+              <div className="bg-brand-secondary p-1 rounded-full text-brand-primary">
+                <ShoppingCart className="size-3" />
+              </div>
+              {showToast}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {!loading && filteredProducts.length === 0 && (
-          <div className="text-center py-20 space-y-4">
-            <div className="bg-gray-100 size-16 mx-auto rounded-full flex items-center justify-center">
-              <Search className="size-8 text-gray-300" />
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center py-32 space-y-8 bg-white rounded-[3rem] border border-brand-primary/5 shadow-sm"
+          >
+            <div className="relative inline-block">
+              <div className="bg-brand-bg size-32 mx-auto rounded-full flex items-center justify-center shadow-inner">
+                <Leaf className="size-16 text-brand-primary/20 animate-pulse" />
+              </div>
+              <div className="absolute -bottom-2 -right-2 bg-white p-3 rounded-2xl shadow-xl">
+                 <Search className="size-6 text-brand-secondary" />
+              </div>
             </div>
-            <h3 className="font-bold text-gray-600 italic text-xl uppercase tracking-tighter">No Harvest Found</h3>
-            <p className="text-gray-400 text-sm">Try searching for something else or browse another category.</p>
-          </div>
+            <div className="space-y-4 max-w-md mx-auto">
+              <h3 className="font-bold text-brand-primary italic text-3xl tracking-tight">No products available yet.</h3>
+              <p className="text-gray-400 font-medium leading-relaxed italic">
+                Our farmers are currently harvesting. Check back shortly for fresh, organic arrivals direct from the field.
+              </p>
+            </div>
+            <button 
+              onClick={() => {
+                setActiveCategory("All");
+                setSearch("");
+              }}
+              className="btn-secondary px-8 py-4 text-[10px] uppercase font-bold tracking-widest"
+            >
+              Reset Filters
+            </button>
+          </motion.div>
         )}
       </div>
 
@@ -377,7 +372,7 @@ export default function Marketplace() {
                   <div className="flex flex-col sm:flex-row gap-4">
                     <button 
                       onClick={() => {
-                        addToCart(selectedProduct);
+                        handleAddToCart(selectedProduct);
                         setSelectedProduct(null);
                       }}
                       className="btn-secondary py-4 px-8 flex items-center justify-center gap-2 flex-1"

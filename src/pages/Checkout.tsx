@@ -35,6 +35,8 @@ export default function Checkout() {
   const deliveryFee = total > 50 ? 0 : 5.00;
   const finalTotal = total + deliveryFee;
 
+  const [gpsDetected, setGpsDetected] = useState(false);
+
   const handleOrderSubmission = async (paymentDetails?: any) => {
     setIsProcessing(true);
     const orderId = `ORD-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
@@ -53,12 +55,13 @@ export default function Checkout() {
         deliveryStatus: 'preparing',
         shipping: shippingInfo,
         paymentId: paymentDetails?.id || 'COD',
+        gpsLocation: gpsDetected ? 'Detected' : 'Not provided',
         createdAt: serverTimestamp(),
       };
 
       const docRef = await addDoc(collection(db, "orders"), orderData);
       
-      // Sync to External Apps Script URL as requested
+      // Sync to External Apps Script URL
       const scriptUrl = "https://script.google.com/macros/s/AKfycbyd_PT3RnIZBBTHY_BK6bYB59i-iQEWf4NOMb4X0GLa5yRLckZHJ0EnnDcpAcB9_1JVzA/exec";
       
       const payload = {
@@ -71,68 +74,35 @@ export default function Checkout() {
         city: shippingInfo.city,
         state: shippingInfo.state,
         pincode: shippingInfo.zipCode,
-        productName: items.map(i => i.name).join(', '),
+        productName: items.map(i => `${i.name} (x${i.qty})`).join(', '),
         productQuantity: items.reduce((acc, i) => acc + i.qty, 0),
         totalPrice: finalTotal,
-        paymentMethod: paymentMethod === 'paypal' ? 'PayPal' : 'Cash on Delivery',
-        orderDateTime: new Date().toISOString(),
+        paymentMethod: paymentMethod === 'paypal' ? 'Online Payment' : 'Cash on Delivery',
+        orderDateTime: new Date().toLocaleString(),
         orderId: orderId,
-        firebaseDocId: docRef.id
+        gpsDetected: gpsDetected ? "Yes" : "No"
       };
 
-      await fetch(scriptUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      try {
+        await fetch(scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (sheetsErr) {
+        console.warn("External sync failed, continuing...", sheetsErr);
+      }
 
-      // Internal platform sync
-      await syncToSheets('orders', {
-        orderId,
-        user: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
-        amount: finalTotal,
-        status: paymentMethod === 'paypal' ? 'Paid' : 'Pending (COD)',
-        date: new Date().toLocaleDateString()
-      });
-
-      setOrderComplete(true);
       clearCart();
+      navigate(`/order-confirmation/${orderId}`);
     } catch (err) {
       console.error(err);
-      alert("Order placement failed. Please check your connection.");
+      alert("Order placement failed. Please verify your details or try a different payment method.");
     } finally {
       setIsProcessing(false);
     }
   };
-
-  if (orderComplete) {
-    return (
-      <div className="min-h-screen pt-32 pb-12 px-4 flex items-center justify-center bg-brand-bg">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="editorial-card max-w-md w-full text-center space-y-8"
-        >
-          <div className="size-24 bg-green-50 text-green-500 rounded-full flex items-center justify-center mx-auto shadow-sm">
-             <CheckCircle2 className="size-12" />
-          </div>
-          <div className="space-y-2">
-             <h2 className="text-3xl font-bold tracking-tight text-brand-primary italic">Harvest Secured!</h2>
-             <p className="text-gray-500 font-medium leading-relaxed italic">Your order has been confirmed. A farmer is now preparing your fresh produce for delivery.</p>
-          </div>
-          <div className="p-4 bg-brand-bg rounded-2xl border border-dashed border-gray-200">
-             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Confirmation ID</p>
-             <p className="text-sm font-mono font-bold text-brand-primary">#{Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
-          </div>
-          <div className="pt-6 grid grid-cols-2 gap-4">
-             <button onClick={() => navigate('/marketplace')} className="btn-secondary py-4 text-[10px] uppercase tracking-widest font-bold">Market</button>
-             <button onClick={() => navigate('/consumer-dashboard')} className="btn-primary py-4 text-[10px] uppercase tracking-widest font-bold">Track Order</button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
 
   if (items.length === 0) {
     return (
@@ -276,15 +246,22 @@ export default function Checkout() {
                                 if (navigator.geolocation) {
                                   navigator.geolocation.getCurrentPosition((pos) => {
                                     console.log("GPS Detected:", pos.coords.latitude, pos.coords.longitude);
+                                    setGpsDetected(true);
                                     // Normally we'd reverse geocode here, but for now we note detection
-                                    setShippingInfo(prev => ({...prev, area: `${prev.area} (GPS Detected)`.trim() }));
+                                    setShippingInfo(prev => ({...prev, area: `${prev.area} (GPS Verified)`.trim() }));
+                                  }, (err) => {
+                                    console.warn("GPS Access Denied");
+                                    alert("Location access denied. Please enter your address manually.");
                                   });
                                 }
                               }}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-brand-secondary hover:bg-brand-secondary/10 rounded-xl transition-all"
-                              title="Detect Location"
+                              className={cn(
+                                "absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl transition-all",
+                                gpsDetected ? "text-green-500 bg-green-50" : "text-brand-secondary hover:bg-brand-secondary/10"
+                              )}
+                              title={gpsDetected ? "Location Verified" : "Detect Location"}
                             >
-                              <MapPin className="size-4" />
+                              {gpsDetected ? <CheckCircle2 className="size-4" /> : <MapPin className="size-4" />}
                             </button>
                           </div>
                        </div>
