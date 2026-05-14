@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { motion } from "motion/react";
 import { Users, ShoppingBag, ArrowRight, ShieldCheck, Leaf } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
@@ -17,8 +18,13 @@ export default function Login() {
     }
   };
 
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
   if (user) {
-    navigate('/dashboard');
     return null;
   }
 

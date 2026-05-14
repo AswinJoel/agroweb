@@ -37,6 +37,9 @@ export default function AdminDashboard() {
     const q = query(collection(db, "orders"), where("deliveryStatus", "in", ["shipped", "out-for-delivery", "preparing"]));
     const unsub = onSnapshot(q, (snap) => {
       setActiveDeliveries(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => {
+      console.error("Admin Dashboard Snapshot Error:", err);
+      setActiveDeliveries([]);
     });
 
     return unsub;

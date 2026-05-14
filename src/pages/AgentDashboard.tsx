@@ -24,6 +24,9 @@ export default function AgentDashboard() {
     const unsub = onSnapshot(q, (snap) => {
       const orders = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setActiveOrders(orders);
+    }, (err) => {
+      console.error("Agent Dashboard Snapshot Error:", err);
+      setActiveOrders([]);
     });
     return unsub;
   }, []);

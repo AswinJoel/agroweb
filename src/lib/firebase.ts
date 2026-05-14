@@ -3,9 +3,11 @@ import { getAuth } from "firebase/auth";
 import { getFirestore, doc, getDocFromServer } from "firebase/firestore";
 import firebaseConfig from "@/firebase-applet-config.json";
 
+console.log("Firebase initialized.");
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const dbId = (firebaseConfig as any).firestoreDatabaseId || "(default)";
+export const db = getFirestore(app, dbId);
 
 export enum OperationType {
   CREATE = 'create',
@@ -44,15 +46,3 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
-// Test Connection
-async function testConnection() {
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log("Connected to Firestore successfully.");
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('offline')) {
-      console.error("Firebase connection failed. Check your configuration.");
-    }
-  }
-}
-testConnection();

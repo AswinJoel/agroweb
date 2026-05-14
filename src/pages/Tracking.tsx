@@ -70,6 +70,9 @@ export default function Tracking() {
         setOrder({ id: snap.id, ...snap.data() });
       }
       setLoading(false);
+    }, (err) => {
+      console.error("Tracking error:", err);
+      setLoading(false);
     });
 
     // 2. Connect to real-time GPS

@@ -21,9 +21,9 @@ export default function Checkout() {
   const [orderComplete, setOrderComplete] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'cod'>('paypal');
   const [shippingInfo, setShippingInfo] = useState({
-    firstName: profile?.name?.split(' ')[0] || "",
-    lastName: profile?.name?.split(' ').slice(1).join(' ') || "",
-    email: profile?.email || user?.email || "",
+    firstName: "",
+    lastName: "",
+    email: "",
     phone: "",
     address: "",
     area: "",
@@ -31,6 +31,22 @@ export default function Checkout() {
     state: "",
     zipCode: "",
   });
+
+  useEffect(() => {
+    console.log("Checkout: Profile loaded/changed", profile);
+    if (profile) {
+      setShippingInfo(prev => ({
+        ...prev,
+        firstName: prev.firstName || profile.name?.split(' ')[0] || "",
+        lastName: prev.lastName || profile.name?.split(' ').slice(1).join(' ') || "",
+        email: prev.email || profile.email || user?.email || "",
+      }));
+    }
+  }, [profile, user]);
+
+  useEffect(() => {
+    console.log("Checkout: Rendered, step:", step);
+  }, [step]);
 
   const deliveryFee = total > 50 ? 0 : 5.00;
   const finalTotal = total + deliveryFee;
@@ -44,7 +60,8 @@ export default function Checkout() {
     try {
       const orderData = {
         orderId,
-        userId: user?.uid,
+        userId: user?.uid, // Keep both for backward compatibility
+        consumerId: user?.uid,
         userName: `${shippingInfo.firstName} ${shippingInfo.lastName}`,
         items,
         subtotal: total,
@@ -84,14 +101,15 @@ export default function Checkout() {
       };
 
       try {
-        await fetch(scriptUrl, {
+        // Non-blocking background sync
+        fetch(scriptUrl, {
           method: 'POST',
           mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
-        });
+        }).catch(err => console.warn("Background sync failed:", err));
       } catch (sheetsErr) {
-        console.warn("External sync failed, continuing...", sheetsErr);
+        console.warn("External sync preparation failed:", sheetsErr);
       }
 
       clearCart();

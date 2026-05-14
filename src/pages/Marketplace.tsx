@@ -178,13 +178,19 @@ export default function Marketplace() {
       setLoading(true);
       setError(null);
       try {
-        // 1. Fetch from External API
+        // 1. Fetch from External API with Timeout
         let apiProducts: Product[] = [];
         try {
-          const response = await fetch(`${API_BASE_URL}/products`);
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+          const response = await fetch(`${API_BASE_URL}/products`, { signal: controller.signal });
+          clearTimeout(timeoutId);
+          
           if (response.ok) {
             const data = await response.json();
             apiProducts = Array.isArray(data) ? data : (data.products || []);
+            console.log(`Marketplace: Fetched ${apiProducts.length} products from API`);
           }
         } catch (apiErr) {
           console.warn("External API unavailable, using local defaults.", apiErr);
@@ -199,11 +205,22 @@ export default function Marketplace() {
             id: doc.id,
             ...doc.data()
           } as Product));
+          console.log(`Marketplace: Fetched ${firestoreProducts.length} products from Firestore`);
         } catch (fsErr) {
-          console.warn("Firestore products unavailable", fsErr);
+          console.error("Marketplace Firestore Fetch Error:", fsErr);
+          // Optional: log to diagnostic tool but don't re-throw
+          try {
+             const errInfo = {
+               error: fsErr instanceof Error ? fsErr.message : String(fsErr),
+               operationType: OperationType.GET,
+               path: "products"
+             };
+             console.error("Diagnostic Info (non-throwing):", JSON.stringify(errInfo));
+          } catch (e) {}
         }
 
         const combinedProducts = [...apiProducts, ...DEFAULT_PRODUCTS, ...firestoreProducts];
+        console.log(`Marketplace: Combined total ${combinedProducts.length} products`);
         setProducts(combinedProducts);
         setFilteredProducts(combinedProducts);
       } catch (err) {

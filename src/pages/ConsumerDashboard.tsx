@@ -26,6 +26,8 @@ export default function ConsumerDashboard() {
       setRealOrders(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (err) => {
       console.warn("Consumer Dashboard Firestore Error:", err);
+      // Ensure we still show something even if query fails (permissions etc)
+      setRealOrders([]);
     });
     return unsub;
   }, [user]);
