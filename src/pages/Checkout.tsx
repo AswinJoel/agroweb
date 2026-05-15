@@ -10,7 +10,7 @@ import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { syncToSheets } from "../services/sheetsService";
 
-const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || "sb"; // Defaults to sandbox
+const PAYPAL_CLIENT_ID = process.env.PAYPAL_CLIENT_ID || "sb"; 
 
 export default function Checkout() {
   const { user, profile } = useAuth();
@@ -135,7 +135,8 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen pt-32 pb-24 bg-brand-bg">
+    <PayPalScriptProvider options={{ "clientId": PAYPAL_CLIENT_ID, components: "buttons", currency: "USD" }}>
+      <div className="min-h-screen pt-32 pb-24 bg-brand-bg">
       <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-12 gap-12">
         
         {/* Left: Checkout Flow */}
@@ -343,25 +344,35 @@ export default function Checkout() {
                            </div>
                         ) : paymentMethod === 'paypal' ? (
                           <div className="space-y-6">
-                             <PayPalScriptProvider options={{ "clientId": PAYPAL_CLIENT_ID }}>
+                             <div className="min-h-[150px]">
                                <PayPalButtons 
                                  style={{ layout: "vertical", shape: "rect", color: "gold", label: "pay" }}
                                  createOrder={(data, actions) => {
+                                   console.log("PayPal: Creating order for amount:", finalTotal);
                                    return actions.order.create({
                                      intent: "CAPTURE",
                                      purchase_units: [{
-                                       amount: { currency_code: "USD", value: finalTotal.toFixed(2) }
+                                       amount: { 
+                                         currency_code: "USD", 
+                                         value: finalTotal.toFixed(2) 
+                                       }
                                      }]
                                    });
                                  }}
                                  onApprove={async (data, actions) => {
+                                   console.log("PayPal: Order approved");
                                    if (actions.order) {
                                      const details = await actions.order.capture();
+                                     console.log("PayPal: Capture successful");
                                      handleOrderSubmission(details);
                                    }
                                  }}
+                                 onError={(err) => {
+                                   console.error("PayPal Error:", err);
+                                   alert("PayPal failed to load or process. Please try again or use COD.");
+                                 }}
                                />
-                             </PayPalScriptProvider>
+                             </div>
                              <div className="relative">
                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
                                <div className="relative flex justify-center text-[8px]"><span className="bg-brand-bg px-4 text-gray-400 font-bold uppercase">Simulator Mode</span></div>
@@ -461,6 +472,7 @@ export default function Checkout() {
         </div>
       </div>
     </div>
+    </PayPalScriptProvider>
   );
 }
 

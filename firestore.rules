@@ -1,8 +1,68 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Default Deny
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
+    }
+    
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'aswinjoel04@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // 1. Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(userId);
+    }
+    
+    // 2. Admins Collection
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    // 3. Products Collection
+    match /products/{productId} {
+      allow read: if true; 
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn(); // Add farm ownership check if possible
+    }
+    
+    // 4. Orders Collection
+    match /orders/{orderId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn();
+    }
+    
+    // 5. Predictions Collection
+    match /predictions/{predictionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+    }
+    
+    // 6. Test Collection for health check
+    match /test/{docId} {
+      allow read: if true; 
     }
   }
 }

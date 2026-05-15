@@ -163,7 +163,7 @@ export default function AgentDashboard() {
                         <span className="text-[10px] font-mono font-medium text-gray-400">#{order.id.slice(-6)}</span>
                       </div>
                       <div className="space-y-2">
-                         <h4 className="font-bold text-brand-primary">{order.shipping.name}</h4>
+                         <h4 className="font-bold text-brand-primary">{order.userName}</h4>
                          <div className="flex items-center gap-2 text-xs text-gray-500 font-medium italic">
                             <MapPin className="size-3" /> {order.shipping.city}
                          </div>

@@ -7,15 +7,25 @@ export default function DashboardRedirect() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && profile) {
-      if (profile.role === "farmer") {
-        navigate("/farmer-dashboard");
-      } else if (profile.role === "admin") {
-        navigate("/admin-dashboard");
+    let timeout: any;
+    if (!loading) {
+      if (profile) {
+        if (profile.role === "farmer") {
+          navigate("/farmer-dashboard");
+        } else if (profile.role === "admin") {
+          navigate("/admin-dashboard");
+        } else {
+          navigate("/consumer-dashboard");
+        }
       } else {
-        navigate("/consumer-dashboard");
+        // Fallback if profile is slow or missing
+        timeout = setTimeout(() => {
+          console.warn("DashboardRedirect: Profile still null after 3s, defaulting to consumer");
+          navigate("/consumer-dashboard");
+        }, 3000);
       }
     }
+    return () => clearTimeout(timeout);
   }, [profile, loading, navigate]);
 
   return <div className="h-screen flex items-center justify-center font-serif italic text-brand-primary">Redirecting to your dashboard...</div>;

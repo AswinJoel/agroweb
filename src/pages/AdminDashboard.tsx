@@ -233,7 +233,7 @@ export default function AdminDashboard() {
                     <div className="space-y-4">
                        <div className="flex items-center gap-3">
                           <div className="size-2 bg-brand-secondary rounded-full" />
-                          <p className="text-sm font-bold text-gray-800 line-clamp-1 italic">{order.shipping.name}</p>
+                          <p className="text-sm font-bold text-gray-800 line-clamp-1 italic">{order.userName}</p>
                        </div>
                        <div className="flex items-center gap-6 pt-4 border-t border-gray-100">
                           <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-bold uppercase tracking-widest">

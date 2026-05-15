@@ -39,11 +39,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(user);
         if (user) {
           const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists()) {
-            setProfile(userDoc.data() as UserProfile);
-          } else {
+          let userDoc;
+          try {
+            userDoc = await getDoc(userDocRef);
+            if (userDoc.exists()) {
+              setProfile(userDoc.data() as UserProfile);
+            } else {
+              setProfile(null);
+            }
+          } catch (getErr) {
+            console.warn("Profile fetch deferred or denied. Proceeding with user only context.", getErr);
             setProfile(null);
           }
         } else {
