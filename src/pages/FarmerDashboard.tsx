@@ -66,7 +66,8 @@ export default function FarmerDashboard() {
     price: "",
     stock: "",
     category: "Vegetables",
-    imageUrl: ""
+    imageUrl: "",
+    location: ""
   });
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -87,7 +88,7 @@ export default function FarmerDashboard() {
         unit: 'kg' // Default unit
       });
       alert("Harvest uploaded successfully!");
-      setNewProduct({ name: "", price: "", stock: "", category: "Vegetables", imageUrl: "" });
+      setNewProduct({ name: "", price: "", stock: "", category: "Vegetables", imageUrl: "", location: "" });
       setActiveTab('overview');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, "products");
@@ -264,12 +265,32 @@ export default function FarmerDashboard() {
                 </div>
 
                 <div className="editorial-card space-y-8">
-                  <h3 className="text-xl font-bold text-brand-primary italic">Top Products</h3>
-                  <div className="space-y-8">
-                    {[].length > 0 ? (
-                      [{ name: "Red Tomatoes", sales: 120, stock: "45kg", price: "₹40" }].map((prod: any, i: number) => (
-                        <div key={i} className="flex items-center justify-between group">
-                          {/* ... existing item code ... */}
+                  <h3 className="text-xl font-bold text-brand-primary italic">Your Registered Products</h3>
+                  <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2">
+                    {products.length > 0 ? (
+                      products.map((prod: any, i: number) => (
+                        <div key={prod.id || i} className="flex items-center justify-between group p-3 hover:bg-gray-50 rounded-2xl transition-colors border border-transparent hover:border-brand-primary/5">
+                          <div className="flex items-center gap-4">
+                            <div className="size-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                               <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                            <div>
+                               <p className="font-bold text-brand-primary text-sm">{prod.name}</p>
+                               <div className="flex items-center gap-3">
+                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{prod.category}</p>
+                                 {prod.location && (
+                                   <div className="flex items-center gap-1 text-[10px] font-bold text-brand-secondary/70 uppercase">
+                                     <span className="size-1 bg-brand-secondary/50 rounded-full" />
+                                     {prod.location}
+                                   </div>
+                                 )}
+                               </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             <p className="font-bold text-brand-primary text-sm">{formatCurrency(prod.price)}</p>
+                             <p className="text-[10px] font-bold text-green-600 bg-green-50 px-2 rounded-full inline-block">{prod.stockAmount}</p>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -277,11 +298,11 @@ export default function FarmerDashboard() {
                          <div className="bg-brand-bg size-12 mx-auto rounded-full flex items-center justify-center">
                             <ShoppingBag className="size-5 text-brand-primary/30" />
                          </div>
-                         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">No Sales recorded yet.</p>
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">No products listed yet.</p>
                       </div>
                     )}
                   </div>
-                  <button onClick={() => setActiveTab('inventory')} className="w-full btn-secondary text-xs uppercase tracking-widest py-4 bg-brand-bg/50 border-brand-primary/10">View Full Inventory</button>
+                  <button onClick={() => setActiveTab('inventory')} className="w-full btn-secondary text-xs uppercase tracking-widest py-4 bg-brand-bg/50 border-brand-primary/10">Add More Yield</button>
                 </div>
               </div>
             </motion.div>
@@ -344,6 +365,17 @@ export default function FarmerDashboard() {
                             className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
                           />
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                         <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Location Details</label>
+                         <input 
+                            type="text" 
+                            required
+                            value={newProduct.location}
+                            onChange={e => setNewProduct({...newProduct, location: e.target.value})}
+                            placeholder="e.g. Village Name, District, State" 
+                            className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
+                          />
                       </div>
                       <div className="space-y-2">
                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Category</label>

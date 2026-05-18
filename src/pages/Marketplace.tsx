@@ -399,7 +399,15 @@ export default function Marketplace() {
 
                   <div className="p-6 flex-grow flex flex-col space-y-3">
                     <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-gray-900 group-hover:text-brand-primary transition-colors">{p.name}</h3>
+                      <div>
+                        <h3 className="font-bold text-gray-900 group-hover:text-brand-primary transition-colors">{p.name}</h3>
+                        {(p as any).location && (
+                          <div className="flex items-center gap-1 text-[10px] text-brand-secondary font-bold uppercase tracking-widest mt-0.5">
+                            <MapPin className="size-2.5" />
+                            {(p as any).location}
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1 text-xs font-bold text-yellow-600">
                         <Star className="size-3 fill-current" />
                         {p.rating}

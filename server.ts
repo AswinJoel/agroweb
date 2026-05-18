@@ -119,43 +119,28 @@ async function startServer() {
           {
             role: "user",
             parts: [
-              { text: "Analyze this plant leaf image for any diseases. Return the result in JSON format with keys: disease, confidence, treatment, prevention, severity. Only return the JSON." },
+              { text: "Analyze this plant leaf image for any diseases. Provide a detailed analysis including disease name, confidence level, treatment steps, prevention tips, and severity (Low/Medium/High). Return ONLY a JSON object." },
               { inlineData: { mimeType: "image/jpeg", data: imageBase64 } }
             ]
           }
         ],
-        config: { responseMimeType: "application/json" }
+        config: { 
+          responseMimeType: "application/json"
+        }
       });
 
       const text = response.text || "";
       console.log("AI Analysis: Gemini success");
+      // Clean up markdown if present
       const jsonText = text.replace(/```json|```/g, "").trim();
       res.json(JSON.parse(jsonText));
     } catch (error: any) {
       console.error("AI Analysis Proxy Error:", error);
-      // Try fallback to standard model if 3-flash-preview fails (robustness)
-      try {
-        console.log("AI Analysis: Attempting fallback to gemini-1.5-flash...");
-        const fallback = await genAI.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: [{
-            role: "user",
-            parts: [
-              { text: "Analyze this plant leaf image for any diseases. Return JSON with keys: disease, confidence, treatment, prevention, severity. Only return JSON." },
-              { inlineData: { mimeType: "image/jpeg", data: imageBase64 } }
-            ]
-          }],
-          config: { responseMimeType: "application/json" }
-        });
-        const text = fallback.text || "";
-        res.json(JSON.parse(text.replace(/```json|```/g, "").trim()));
-      } catch (fallbackErr: any) {
-        res.status(500).json({ 
-          error: "Internal Processing Error", 
-          details: error.message,
-          suggestion: "Ensure the image is clear and not too large."
-        });
-      }
+      res.status(error.status === 429 ? 429 : 500).json({ 
+        error: "Neural Scan Failed", 
+        details: error.message,
+        suggestion: error.status === 429 ? "Quota exceeded. Please wait a few minutes." : "Ensure the image is clear and not too large."
+      });
     }
   });
 
