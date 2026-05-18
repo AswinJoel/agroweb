@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { collection, query, getDocs, where } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "../lib/firebase";
+import { db, handleFirestoreError, OperationType, auth } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 import { Search, Filter, ShoppingCart, Star, ChevronRight, X, Heart, Sparkles, Loader2, MapPin, ArrowRight, CreditCard, Leaf } from "lucide-react";
 import { cn, formatCurrency } from "../lib/utils";
@@ -199,6 +199,7 @@ export default function Marketplace() {
         // 2. Fetch from Firestore (Local Farmer Uploads)
         let firestoreProducts: Product[] = [];
         try {
+          console.log(`Marketplace: Fetching from Firestore databaseId: ${(db as any)._databaseId?.database || "(default)"}`);
           const q = query(collection(db, "products"));
           const querySnapshot = await getDocs(q);
           firestoreProducts = querySnapshot.docs.map(doc => ({
@@ -210,10 +211,14 @@ export default function Marketplace() {
           console.error("Marketplace Firestore Fetch Error:", fsErr);
           // Optional: log to diagnostic tool but don't re-throw
           try {
+             const fsError = fsErr as any;
              const errInfo = {
                error: fsErr instanceof Error ? fsErr.message : String(fsErr),
-               operationType: OperationType.GET,
-               path: "products"
+               code: fsError.code,
+               operationType: OperationType.LIST,
+               path: "products",
+               databaseId: (db as any)._databaseId?.database || "(default)",
+               isAuthenticated: !!auth.currentUser
              };
              console.error("Diagnostic Info (non-throwing):", JSON.stringify(errInfo));
           } catch (e) {}

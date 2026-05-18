@@ -26,9 +26,16 @@ export default function Login() {
     } catch (err: any) {
       console.error(err);
       let message = err.message || "Authentication failed. Please check your popup blocker or try again.";
-      if (message.includes("auth/unauthorized-domain")) {
+      
+      // Handle Firebase specific errors
+      if (err.code === 'auth/popup-closed-by-user') {
+        message = "Sign-in popup was closed before completion. Please try again and complete the sign-in in the popup window.";
+      } else if (err.code === 'auth/cancelled-by-user') {
+        message = "Sign-in was cancelled. Please try again.";
+      } else if (message.includes("auth/unauthorized-domain")) {
         message = `Unauthorized Domain: Please add "${window.location.hostname}" to your Firebase Console under Authentication > Settings > Authorized domains.`;
       }
+      
       setError(message);
     } finally {
       setLoading(null);
