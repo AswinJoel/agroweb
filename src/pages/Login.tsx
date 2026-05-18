@@ -19,7 +19,11 @@ export default function Login() {
       navigate('/dashboard');
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Authentication failed. Please check your popup blocker or try again.");
+      let message = err.message || "Authentication failed. Please check your popup blocker or try again.";
+      if (message.includes("auth/unauthorized-domain")) {
+        message = "Unauthorized Domain: Please add this domain to your Firebase Console under Authentication > Settings > Authorized domains.";
+      }
+      setError(message);
     } finally {
       setLoading(null);
     }
