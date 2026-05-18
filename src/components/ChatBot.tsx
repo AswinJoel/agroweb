@@ -43,24 +43,15 @@ export default function ChatBot() {
     setLoading(true);
 
     try {
-      const API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY;
-      if (!API_KEY) throw new Error("GEMINI_API_KEY is not defined");
-
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: `System Instruction: ${SYSTEM_PROMPT}\n\nUser: ${messageToSend}` }]
-            }
-          ]
-        })
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: messageToSend, context: SYSTEM_PROMPT })
       });
 
+      if (!response.ok) throw new Error("Failed to get response");
       const data = await response.json();
-      const botResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "Agro is here to help!";
+      const botResponse = data.response || "Agro is here to help!";
 
       setMessages(prev => [...prev, { role: "bot", content: botResponse }]);
     } catch (err) {

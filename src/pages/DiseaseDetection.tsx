@@ -1,10 +1,7 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Upload, Camera, BrainCircuit, ShieldCheck, AlertCircle, RefreshCw, ChevronRight, History, ShoppingBag } from "lucide-react";
-import { GoogleGenAI } from "@google/genai";
 import { cn } from "../lib/utils";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 interface PredictionResult {
   disease: string;
@@ -42,31 +39,14 @@ export default function DiseaseDetection() {
     try {
       const base64Data = image.split(",")[1];
       
-      const prompt = `
-        Analyze this plant leaf image for any diseases.
-        Return the result in strict JSON format with the following keys:
-        - disease: Name of the disease or "Healthy"
-        - confidence: Percentage confidence (e.g. "95%")
-        - treatment: Detailed suggested treatment or "N/A"
-        - prevention: Prevention methods or "N/A"
-        - severity: "Low", "Medium", or "High"
-        Only return the JSON.
-      `;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: {
-          parts: [
-            { text: prompt },
-            { inlineData: { mimeType: "image/jpeg", data: base64Data } }
-          ]
-        },
-        config: {
-          responseMimeType: "application/json"
-        }
+      const response = await fetch("/api/ai/analyze-plant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64Data })
       });
 
-      const data = JSON.parse(response.text);
+      if (!response.ok) throw new Error("Analysis failed");
+      const data = await response.json();
       setResult(data);
     } catch (err) {
       console.error(err);

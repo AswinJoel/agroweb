@@ -16,12 +16,17 @@ export default function Login() {
       setLoading(role);
       setError(null);
       await signIn(role);
-      navigate('/dashboard');
+      // Immediate redirect based on role
+      if (role === 'farmer') {
+        navigate('/farmer-dashboard?tab=inventory');
+      } else {
+        navigate('/consumer-dashboard');
+      }
     } catch (err: any) {
       console.error(err);
       let message = err.message || "Authentication failed. Please check your popup blocker or try again.";
       if (message.includes("auth/unauthorized-domain")) {
-        message = "Unauthorized Domain: Please add this domain to your Firebase Console under Authentication > Settings > Authorized domains.";
+        message = `Unauthorized Domain: Please add "${window.location.hostname}" to your Firebase Console under Authentication > Settings > Authorized domains.`;
       }
       setError(message);
     } finally {
@@ -31,6 +36,8 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
+      // If user is already there, we still need to know their role to redirect properly
+      // If profile isn't loaded yet, go to /dashboard to let it handle it
       navigate('/dashboard');
     }
   }, [user, navigate]);

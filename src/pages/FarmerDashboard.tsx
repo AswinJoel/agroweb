@@ -16,7 +16,10 @@ import { db, handleFirestoreError, OperationType } from "../lib/firebase";
 
 export default function FarmerDashboard() {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || "overview";
+  });
   const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {

@@ -1,7 +1,3 @@
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
 export interface Recommendation {
   id: string;
   name: string;
@@ -24,14 +20,18 @@ export async function getProductRecommendations(
     Response must be a JSON array of objects with: id (string), name (string), reason (string, why it's recommended), category (string).
     Keep it professional and helpful.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt
+    const response = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: prompt, context: "Recommendation Engine" })
     });
-    const text = response.text || "";
+
+    if (!response.ok) throw new Error("Proxy failed");
+    const data = await response.json();
+    const text = data.response || "";
     
     // Attempt to parse JSON from Markdown block if present
-    const jsonStr = text.match(/\[.*\]/s)?.[0] || text;
+    const jsonStr = text.match(/\[.*\]/s)?.[0] || text.replace(/```json|```/g, "").trim();
     return JSON.parse(jsonStr);
   } catch (err) {
     console.error("AI Recommendation Error:", err);
@@ -47,15 +47,19 @@ export async function getFarmerAssistantResponse(
   context: string = ""
 ): Promise<string> {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `${context}\n\nUser query: ${query}`,
-      config: {
-        systemInstruction: "You are the AgroConnect Farmer's Assistant. You help farmers manage their inventory, diagnose crop issues (provide general advice), and navigate the AgroConnect platform. Keep responses concise and use Markdown."
-      }
+    const response = await fetch("/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        message: query, 
+        context: `Farmer Context: ${context}. Instruction: You are the AgroConnect Farmer's Assistant.` 
+      })
     });
+
+    if (!response.ok) throw new Error("Proxy failed");
+    const data = await response.json();
     
-    return response.text || "";
+    return data.response || "";
   } catch (err) {
     console.error("Farmer AI Assistant Error:", err);
     return "I'm sorry, I'm having trouble connecting to the neural network. Please check your connection or try again later.";
