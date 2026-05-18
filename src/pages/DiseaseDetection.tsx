@@ -45,12 +45,16 @@ export default function DiseaseDetection() {
         body: JSON.stringify({ imageBase64: base64Data })
       });
 
-      if (!response.ok) throw new Error("Analysis failed");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || "Neural Scan Failed");
+      }
+      
       const data = await response.json();
       setResult(data);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to analyze image. Please try again with a clearer photo of a plant leaf.");
+    } catch (err: any) {
+      console.error("Analysis client error:", err);
+      setError(err.message || "Failed to analyze image. Please try again with a clearer photo of a plant leaf.");
     } finally {
       setAnalyzing(false);
     }

@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { cn } from "../lib/utils";
 
 export default function Login() {
-  const { signIn, user } = useAuth();
+  const { signIn, user, profile } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -15,12 +15,13 @@ export default function Login() {
     try {
       setLoading(role);
       setError(null);
-      await signIn(role);
-      // Immediate redirect based on role
-      if (role === 'farmer') {
-        navigate('/farmer-dashboard?tab=inventory');
+      const userProfile = await signIn(role);
+      // Immediate direct redirect for farmers
+      if (userProfile?.role === 'farmer') {
+        navigate('/farmer-dashboard?tab=inventory', { replace: true });
       } else {
-        navigate('/consumer-dashboard');
+        // Go through the "Slow/Premium" handshaking screen for consumers
+        navigate('/dashboard', { replace: true });
       }
     } catch (err: any) {
       console.error(err);
@@ -35,16 +36,15 @@ export default function Login() {
   };
 
   useEffect(() => {
-    if (user) {
-      // If user is already there, we still need to know their role to redirect properly
-      // If profile isn't loaded yet, go to /dashboard to let it handle it
+    if (user && profile) {
+      // Fully authenticated with profile, go to dashboard
       navigate('/dashboard');
     }
-  }, [user, navigate]);
+  }, [user, profile, navigate]);
 
-  if (user) {
-    return null;
-  }
+  // Don't hide the whole UI if user exists but profile is missing
+  // This allows them to pick their role to "complete" their profile.
+  const isOnboarding = user && !profile;
 
   return (
     <div className="min-h-screen pt-32 pb-24 bg-brand-bg relative overflow-hidden flex items-center justify-center">
@@ -65,10 +65,13 @@ export default function Login() {
             Secure Authentication
           </motion.div>
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-brand-primary italic">
-            Welcome to <span className="accent-text not-italic">AgroConnect.</span>
+            {isOnboarding ? 'Complete your' : 'Welcome to'} <span className="accent-text not-italic">{isOnboarding ? 'Profile.' : 'AgroConnect.'}</span>
           </h1>
           <p className="text-gray-500 font-medium italic text-lg max-w-lg mx-auto">
-            Directly connecting India's finest farmers to households across the nation. Select your path to begin.
+            {isOnboarding 
+              ? "You're almost there! Simply pick your role to finalize your AgroConnect account."
+              : "Directly connecting India's finest farmers to households across the nation. Select your path to begin."
+            }
           </p>
         </div>
 

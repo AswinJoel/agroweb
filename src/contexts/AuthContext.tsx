@@ -22,7 +22,7 @@ interface AuthContextType {
   user: FirebaseUser | null;
   profile: UserProfile | null;
   loading: boolean;
-  signIn: (intendedRole?: 'farmer' | 'consumer') => Promise<void>;
+  signIn: (intendedRole?: 'farmer' | 'consumer') => Promise<UserProfile>;
   logout: () => Promise<void>;
 }
 
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  const signIn = async (intendedRole: 'farmer' | 'consumer' = 'consumer') => {
+  const signIn = async (intendedRole: 'farmer' | 'consumer' = 'consumer'): Promise<UserProfile> => {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
@@ -89,8 +89,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setProfile(newProfile);
+      return newProfile;
     } else {
-      setProfile(userDoc.data() as UserProfile);
+      const existingProfile = userDoc.data() as UserProfile;
+      setProfile(existingProfile);
+      return existingProfile;
     }
   };
 
