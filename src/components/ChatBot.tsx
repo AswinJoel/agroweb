@@ -43,7 +43,7 @@ export default function ChatBot() {
     setLoading(true);
 
     try {
-      const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+      const API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY;
       if (!API_KEY) throw new Error("GEMINI_API_KEY is not defined");
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {

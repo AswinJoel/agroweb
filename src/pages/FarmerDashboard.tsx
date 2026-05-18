@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { 
   Package, TrendingUp, Users, AlertTriangle, 
   Plus, LayoutGrid, List, BarChart3, Settings, 
-  ShieldCheck, ArrowUpRight, BrainCircuit, Send, Loader2, User, Leaf, Sparkles
+  ShieldCheck, ArrowUpRight, BrainCircuit, Send, Loader2, User, Leaf, Sparkles,
+  ShoppingBag
 } from "lucide-react";
 import { cn, formatCurrency } from "../lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
