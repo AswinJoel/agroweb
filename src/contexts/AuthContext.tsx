@@ -34,21 +34,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (authenticatedUser) => {
       try {
-        setUser(user);
-        if (user) {
-          const userDocRef = doc(db, 'users', user.uid);
+        setUser(authenticatedUser);
+        if (authenticatedUser) {
+          console.log("AuthProvider: User authenticated, fetching profile for:", authenticatedUser.uid);
+          const userDocRef = doc(db, 'users', authenticatedUser.uid);
           let userDoc;
           try {
             userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
-              setProfile(userDoc.data() as UserProfile);
+              const data = userDoc.data() as UserProfile;
+              console.log("AuthProvider: Profile loaded:", data.role);
+              setProfile(data);
             } else {
+              console.log("AuthProvider: No profile found in Firestore for UID:", authenticatedUser.uid);
               setProfile(null);
             }
           } catch (getErr) {
-            console.warn("Profile fetch deferred or denied. Proceeding with user only context.", getErr);
+            console.warn("AuthProvider: Profile fetch deferred or denied. Likely permission error or network.", getErr);
             setProfile(null);
           }
         } else {
@@ -65,35 +69,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (intendedRole: 'farmer' | 'consumer' = 'consumer'): Promise<UserProfile> => {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
 
-    const userDocRef = doc(db, 'users', user.uid);
-    const userDoc = await getDoc(userDocRef);
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
 
-    if (!userDoc.exists()) {
-      const isAdminUser = user.email === 'aswinjoel04@gmail.com';
-      const newProfile: UserProfile = {
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName,
-        role: isAdminUser ? 'admin' : intendedRole,
-        isVerified: true,
-        createdAt: new Date().toISOString()
-      };
-      await setDoc(userDocRef, newProfile);
-      
-      if (isAdminUser) {
-        await setDoc(doc(db, 'admins', user.uid), { active: true });
+      if (!userDoc.exists()) {
+        const isAdminUser = user.email === 'aswinjoel04@gmail.com';
+        const newProfile: UserProfile = {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName,
+          role: isAdminUser ? 'admin' : intendedRole,
+          isVerified: true,
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(userDocRef, newProfile);
+        
+        if (isAdminUser) {
+          await setDoc(doc(db, 'admins', user.uid), { active: true });
+        }
+        
+        setProfile(newProfile);
+        return newProfile;
+      } else {
+        const existingProfile = userDoc.data() as UserProfile;
+        setProfile(existingProfile);
+        return existingProfile;
       }
-      
-      setProfile(newProfile);
-      return newProfile;
-    } else {
-      const existingProfile = userDoc.data() as UserProfile;
-      setProfile(existingProfile);
-      return existingProfile;
+    } catch (error: any) {
+      if (error.code === 'auth/cancelled-popup-request') {
+        console.warn("Auth: A previous login request was already in progress.");
+      }
+      throw error;
     }
   };
 

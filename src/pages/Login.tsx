@@ -12,6 +12,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
 
   const handleRoleSelection = async (role: 'farmer' | 'consumer') => {
+    if (loading) return; // Prevent multiple requests
     try {
       setLoading(role);
       setError(null);
@@ -32,6 +33,8 @@ export default function Login() {
         message = "Sign-in popup was closed before completion. Please try again and complete the sign-in in the popup window.";
       } else if (err.code === 'auth/cancelled-by-user') {
         message = "Sign-in was cancelled. Please try again.";
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        message = "A sign-in request is already in progress. Please check the popup window or wait a moment.";
       } else if (message.includes("auth/unauthorized-domain")) {
         message = `Unauthorized Domain: Please add "${window.location.hostname}" to your Firebase Console under Authentication > Settings > Authorized domains.`;
       }

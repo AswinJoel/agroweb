@@ -37,6 +37,15 @@ export default function DiseaseDetection() {
     setError(null);
 
     try {
+      // Preliminary health check to verify server is reachable
+      try {
+        const healthCheck = await fetch("/api/health");
+        if (!healthCheck.ok) console.warn("Server health check failed, but proceeding...");
+      } catch (e) {
+        console.error("Connectivity error:", e);
+        throw new Error("AgroConnect Server Unreachable. Please wait and try again.");
+      }
+
       const base64Data = image.split(",")[1];
       
       const response = await fetch("/api/ai/analyze-plant", {

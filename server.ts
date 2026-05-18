@@ -36,6 +36,13 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+  // Debug Logger & Security Headers
+  app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    res.setHeader("Cross-Origin-Opener-Policy", "unsafe-none");
+    next();
+  });
+
   // Real-time Delivery Store
   const activeDeliveries = new Map();
 
@@ -94,53 +101,61 @@ async function startServer() {
   });
 
   // AI Plant Disease Analysis Proxy
+  app.get("/api/ai/health", (req, res) => res.json({ status: "ready" }));
+
   app.post("/api/ai/analyze-plant", async (req, res) => {
+    console.log("AI Analysis Request: Image data received");
     try {
       const { imageBase64 } = req.body;
-      if (!imageBase64) return res.status(400).json({ error: "No image data provided" });
+      if (!imageBase64) {
+        console.warn("AI Analysis: No image data provided");
+        return res.status(400).json({ error: "No image data provided" });
+      }
 
-      // Use the modern SDK pattern: ai.models.generateContent
+      console.log("AI Analysis: Sending to Gemini (gemini-3-flash-preview)...");
       const response = await genAI.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
           {
             role: "user",
             parts: [
-              { text: `
-                Analyze this plant leaf image for any diseases.
-                Return the result in strict JSON format with the following keys:
-                - disease: Name of the disease or "Healthy"
-                - confidence: Percentage confidence (e.g. "95%")
-                - treatment: Detailed suggested treatment or "N/A"
-                - prevention: Prevention methods or "N/A"
-                - severity: "Low", "Medium", or "High"
-                Only return the JSON.
-              `},
-              {
-                inlineData: {
-                  mimeType: "image/jpeg",
-                  data: imageBase64
-                }
-              }
+              { text: "Analyze this plant leaf image for any diseases. Return the result in JSON format with keys: disease, confidence, treatment, prevention, severity. Only return the JSON." },
+              { inlineData: { mimeType: "image/jpeg", data: imageBase64 } }
             ]
           }
         ],
-        config: {
-          responseMimeType: "application/json"
-        }
+        config: { responseMimeType: "application/json" }
       });
 
       const text = response.text || "";
-      // Clean up markdown if present
+      console.log("AI Analysis: Gemini success");
       const jsonText = text.replace(/```json|```/g, "").trim();
       res.json(JSON.parse(jsonText));
     } catch (error: any) {
       console.error("AI Analysis Proxy Error:", error);
-      res.status(500).json({ 
-        error: "Internal Processing Error", 
-        details: error.message,
-        suggestion: "Ensure the image is clear and not too large (under 20MB)."
-      });
+      // Try fallback to standard model if 3-flash-preview fails (robustness)
+      try {
+        console.log("AI Analysis: Attempting fallback to gemini-1.5-flash...");
+        const fallback = await genAI.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: [{
+            role: "user",
+            parts: [
+              { text: "Analyze this plant leaf image for any diseases. Return JSON with keys: disease, confidence, treatment, prevention, severity. Only return JSON." },
+              { inlineData: { mimeType: "image/jpeg", data: imageBase64 } }
+            ]
+          }],
+          config: { responseMimeType: "application/json" }
+        });
+        const text = fallback.text || "";
+        res.json(JSON.parse(text.replace(/```json|```/g, "").trim()));
+      } catch (fallbackErr: any) {
+        res.status(500).json({ 
+          error: "Internal Processing Error", 
+          details: error.message,
+          suggestion: "Ensure the image is clear and not too large."
+        });
+      }
     }
   });
 
@@ -149,6 +164,7 @@ async function startServer() {
     try {
       const { message, context } = req.body;
       
+      console.log("AI Chat: Sending to Gemini (gemini-3-flash-preview)...");
       const response = await genAI.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
@@ -167,6 +183,17 @@ async function startServer() {
       console.error("AI Chat Error:", error);
       res.status(500).json({ error: "Failed to get AI response" });
     }
+  });
+
+  // API 404 Logger (placed before Vite middleware)
+  app.use("/api/*", (req, res) => {
+    console.warn(`Unmatched API route: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({ 
+      error: "API Endpoint Not Found", 
+      path: req.originalUrl,
+      method: req.method,
+      suggestion: "Check if the endpoint is registered correctly in server.ts"
+    });
   });
 
   // Vite middleware for development
