@@ -49,6 +49,8 @@ export default function App() {
               
               <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
               <Route path="/farmer-dashboard" element={<ProtectedRoute role="farmer"><FarmerDashboard /></ProtectedRoute>} />
+              <Route path="/add-product" element={<ProtectedRoute role="farmer"><FarmerDashboard initialTab="add" /></ProtectedRoute>} />
+              <Route path="/my-listings" element={<ProtectedRoute role="farmer"><FarmerDashboard initialTab="inventory" /></ProtectedRoute>} />
               <Route path="/consumer-dashboard" element={<ProtectedRoute role="consumer"><ConsumerDashboard /></ProtectedRoute>} />
               <Route path="/admin-dashboard" element={<ProtectedRoute role="admin"><AdminDashboard /></ProtectedRoute>} />
               

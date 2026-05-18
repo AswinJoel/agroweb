@@ -199,29 +199,14 @@ export default function Marketplace() {
         // 2. Fetch from Firestore (Local Farmer Uploads)
         let firestoreProducts: Product[] = [];
         try {
-          console.log(`Marketplace: Fetching from Firestore databaseId: ${(db as any)._databaseId?.database || "(default)"}`);
           const q = query(collection(db, "products"));
           const querySnapshot = await getDocs(q);
           firestoreProducts = querySnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()
           } as Product));
-          console.log(`Marketplace: Fetched ${firestoreProducts.length} products from Firestore`);
         } catch (fsErr) {
-          console.error("Marketplace Firestore Fetch Error:", fsErr);
-          // Optional: log to diagnostic tool but don't re-throw
-          try {
-             const fsError = fsErr as any;
-             const errInfo = {
-               error: fsErr instanceof Error ? fsErr.message : String(fsErr),
-               code: fsError.code,
-               operationType: OperationType.LIST,
-               path: "products",
-               databaseId: (db as any)._databaseId?.database || "(default)",
-               isAuthenticated: !!auth.currentUser
-             };
-             console.error("Diagnostic Info (non-throwing):", JSON.stringify(errInfo));
-          } catch (e) {}
+          handleFirestoreError(fsErr, OperationType.LIST, "products");
         }
 
         const combinedProducts = [...apiProducts, ...DEFAULT_PRODUCTS, ...firestoreProducts];

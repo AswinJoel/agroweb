@@ -51,8 +51,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               console.log("AuthProvider: No profile found in Firestore for UID:", authenticatedUser.uid);
               setProfile(null);
             }
-          } catch (getErr) {
-            console.warn("AuthProvider: Profile fetch deferred or denied. Likely permission error or network.", getErr);
+          } catch (getErr: any) {
+            const isOffline = !navigator.onLine || getErr.code === 'unavailable' || getErr.message?.includes('offline');
+            if (isOffline) {
+              console.warn("AuthProvider: Offline - Profile fetch impossible right now.");
+            } else {
+              console.warn("AuthProvider: Profile fetch deferred or denied. Likely permission error or network.", getErr);
+            }
             setProfile(null);
           }
         } else {

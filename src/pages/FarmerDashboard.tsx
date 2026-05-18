@@ -5,34 +5,52 @@ import {
   Package, TrendingUp, Users, AlertTriangle, 
   Plus, LayoutGrid, List, BarChart3, Settings, 
   ShieldCheck, ArrowUpRight, BrainCircuit, Send, Loader2, User, Leaf, Sparkles,
-  ShoppingBag
+  ShoppingBag, Camera, Microscope, FileCheck, MapPin, Trash2, Edit3, 
+  MoreVertical, CheckCircle2, XCircle, Map, Search, ChevronRight, Globe, 
+  Navigation, Eye, EyeOff, ChevronLeft
 } from "lucide-react";
 import { cn, formatCurrency } from "../lib/utils";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
 import { getFarmerAssistantResponse } from "../services/aiService";
 import ReactMarkdown from "react-markdown";
-import { collection, addDoc, serverTimestamp, query, where, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, onSnapshot, doc, updateDoc, deleteDoc, orderBy } from "firebase/firestore";
 import { db, handleFirestoreError, OperationType } from "../lib/firebase";
+import { useNavigate } from "react-router-dom";
 
-export default function FarmerDashboard() {
-  const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState(() => {
-    const params = new URLSearchParams(window.location.search);
-    return params.get('tab') || "overview";
-  });
+const categories = ["Vegetables", "Fruits", "Grains", "Dairy", "Spices", "Flowers", "Other"];
+const units = ["kg", "quintal", "ton", "litre", "dozen", "packet", "box", "crate"];
+
+interface FarmerDashboardProps {
+  initialTab?: 'overview' | 'inventory' | 'add' | 'assistant';
+}
+
+export default function FarmerDashboard({ initialTab }: FarmerDashboardProps) {
+  const { profile, user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'overview' | 'inventory' | 'add' | 'assistant'>(initialTab || 'overview');
   const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Real-time synchronization
   useEffect(() => {
     if (!profile?.uid) return;
-    const q = query(collection(db, "products"), where("farmerId", "==", profile.uid));
+    setLoading(true);
+    const q = query(
+      collection(db, "products"), 
+      where("farmerId", "==", profile.uid),
+      orderBy("createdAt", "desc")
+    );
     const unsub = onSnapshot(q, (snap) => {
-      console.log(`Farmer Dashboard: Received ${snap.size} products from Firestore`);
       setProducts(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
     }, (err) => {
-      console.warn("Farmer Dashboard Firestore Error:", err);
+      handleFirestoreError(err, OperationType.LIST, "products");
+      setLoading(false);
     });
     return unsub;
   }, [profile]);
+
+  // AI Assistant Integration
   const [assistantInput, setAssistantInput] = useState("");
   const [assistantMessages, setAssistantMessages] = useState<{ role: 'user' | 'bot', content: string }[]>([
     { role: 'bot', content: "Hello! I'm your AI Agricultural Assistant. How can I help you manage your farm or inventory today?" }
@@ -52,44 +70,116 @@ export default function FarmerDashboard() {
     setAssistantInput("");
     setAssistantMessages(prev => [...prev, { role: 'user', content: userMsg }]);
     setIsTyping(true);
-
-    const context = `Farmer Profile: ${profile?.name || "Verified Farmer"}. Inventory Status: Healthy. Sales Trend: Up.`;
+    const context = `Farmer: ${profile?.name}. Yields: ${products.length} listed.`;
     const response = await getFarmerAssistantResponse(userMsg, context);
-    
     setAssistantMessages(prev => [...prev, { role: 'bot', content: response }]);
     setIsTyping(false);
   };
 
+  // Form & CRUD Logic
   const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiReport, setAiReport] = useState<any>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [newProduct, setNewProduct] = useState({
     name: "",
     price: "",
     stock: "",
     category: "Vegetables",
+    unit: "kg",
     imageUrl: "",
-    location: ""
+    location: { village: "", district: "", state: "" },
+    description: "",
+    status: "active" as "active" | "inactive" | "sold"
   });
 
-  const handleUpload = async (e: React.FormEvent) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewProduct(prev => ({ ...prev, imageUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const detectLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setNewProduct(prev => ({
+          ...prev,
+          location: {
+            village: prev.location.village,
+            district: "Detected",
+            state: `Coord: ${pos.coords.latitude.toFixed(2)}`
+          }
+        }));
+      });
+    }
+  };
+
+  const handleAnalyzeHarvest = async () => {
+    if (!newProduct.imageUrl) return alert("Select photo first.");
+    setAnalyzing(true);
+    try {
+      const base64 = newProduct.imageUrl.split(',')[1];
+      const response = await fetch("/api/ai/analyze-plant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64 })
+      });
+      const result = await response.json();
+      if (response.ok) {
+        setAiReport(result);
+        setNewProduct(prev => ({ ...prev, description: prev.description + `\n\n[Neural Scan: ${result.disease}]` }));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProduct.name || !newProduct.price || !profile?.uid) return;
-    
+    if (!profile?.uid) return;
     setUploading(true);
     try {
-      await addDoc(collection(db, "products"), {
+      const locStr = `${newProduct.location.village}, ${newProduct.location.district}, ${newProduct.location.state}`;
+      const payload = {
         ...newProduct,
         price: parseFloat(newProduct.price),
         stockAmount: newProduct.stock,
+        location: locStr,
         farmerId: profile.uid,
         farmerName: profile.name,
-        rating: 5.0,
-        reviewsCount: 0,
-        createdAt: serverTimestamp(),
-        unit: 'kg' // Default unit
-      });
-      alert("Harvest uploaded successfully!");
-      setNewProduct({ name: "", price: "", stock: "", category: "Vegetables", imageUrl: "", location: "" });
-      setActiveTab('overview');
+        isAiVerified: !!aiReport,
+        aiGrade: aiReport?.severity || "Standard",
+        createdAt: editingId ? undefined : serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "products", editingId), payload);
+        setToast("Listing updated successfully!");
+      } else {
+        await addDoc(collection(db, "products"), payload);
+        setToast("Harvest listed to marketplace!");
+      }
+      resetForm();
+      setActiveTab('inventory');
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, "products");
     } finally {
@@ -97,453 +187,210 @@ export default function FarmerDashboard() {
     }
   };
 
-  const stats = [
-    { label: "Total Sales", value: "₹0", trend: null, icon: TrendingUp },
-    { label: "Active Products", value: products.length.toString(), icon: Package },
-    { label: "Total Orders", value: "0", icon: List },
-    { label: "Rating", value: "5.0", icon: BarChart3 },
-  ];
+  const resetForm = () => {
+    setNewProduct({
+      name: "", price: "", stock: "", category: "Vegetables", unit: "kg",
+      imageUrl: "", location: { village: "", district: "", state: "" },
+      description: "", status: "active"
+    });
+    setAiReport(null);
+    setEditingId(null);
+  };
 
-  const data = [
-    { name: "Mon", sales: 0 },
-    { name: "Tue", sales: 0 },
-    { name: "Wed", sales: 0 },
-    { name: "Thu", sales: 0 },
-    { name: "Fri", sales: 0 },
-    { name: "Sat", sales: 0 },
-    { name: "Sun", sales: 0 },
+  const startEdit = (p: any) => {
+    const lp = (p.location || "").split(', ');
+    setNewProduct({
+      name: p.name, price: (p.price || 0).toString(), stock: p.stockAmount || "",
+      category: p.category || "Vegetables", unit: p.unit || "kg", imageUrl: p.imageUrl || "",
+      location: { village: lp[0] || "", district: lp[1] || "", state: lp[2] || "" },
+      description: p.description || "", status: p.status || "active"
+    });
+    setEditingId(p.id);
+    setActiveTab('add');
+  };
+
+  const deleteProduct = async (id: string) => {
+    if (window.confirm("Remove this listing?")) {
+      await deleteDoc(doc(db, "products", id));
+    }
+  };
+
+  if (loading && products.length === 0) {
+    return <div className="min-h-screen bg-brand-bg flex items-center justify-center"><Loader2 className="animate-spin text-brand-primary" /></div>;
+  }
+
+  const revenueData = [
+    { name: 'Jan', revenue: 4200 },
+    { name: 'Feb', revenue: 3800 },
+    { name: 'Mar', revenue: 5600 },
+    { name: 'Apr', revenue: 4780 },
+    { name: 'May', revenue: 6890 },
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-brand-bg flex font-sans">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-100 hidden lg:flex flex-col p-6 space-y-8">
-        <div className="space-y-4">
-          <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest pl-4">Management</p>
-          <nav className="space-y-1">
-            {[
-              { id: "overview", icon: LayoutGrid, label: "Overview" },
-              { id: "assistant", icon: BrainCircuit, label: "AI Assistant" },
-              { id: "inventory", icon: Package, label: "Inventory" },
-              { id: "orders", icon: List, label: "Orders" },
-              { id: "analytics", icon: BarChart3, label: "Analytics" },
-              { id: "settings", icon: Settings, label: "Settings" }
-            ].map(item => (
-              <button 
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all group",
-                  activeTab === item.id 
-                    ? "bg-brand-primary text-white shadow-lg" 
-                    : "text-gray-600 hover:bg-gray-50"
-                )}
-              >
-                <item.icon className={cn("size-4", item.id === 'assistant' && "text-brand-secondary group-hover:animate-pulse")} />
-                {item.label}
-              </button>
-            ))}
-          </nav>
+      <aside className="w-80 bg-white border-r border-brand-primary/5 p-8 flex flex-col h-screen sticky top-0 shadow-sm">
+        <div className="flex items-center gap-4 mb-20">
+          <div className="size-12 bg-brand-primary rounded-2xl flex items-center justify-center text-white shadow-xl shadow-brand-primary/20"><Leaf className="size-7" /></div>
+          <div><h1 className="text-2xl font-bold font-playfair italic text-brand-primary">AgroConnect.</h1><p className="text-[10px] font-bold uppercase tracking-widest text-brand-secondary/60">Farmer Suite</p></div>
         </div>
-
-        <div className="mt-auto p-4 bg-brand-bg rounded-2xl border border-brand-accent/30 space-y-3">
-          <p className="text-[10px] font-bold text-brand-primary uppercase tracking-widest">Support</p>
-          <p className="text-xs text-gray-600 leading-relaxed">Need help with your listings?</p>
-          <button className="text-xs font-bold text-brand-primary hover:underline">Contact Expert</button>
+        <nav className="flex-grow space-y-3">
+          {[
+            { id: 'overview', icon: LayoutGrid, label: 'Dashboard' },
+            { id: 'add', icon: Plus, label: editingId ? 'Edit Listing' : 'List Harvest' },
+            { id: 'inventory', icon: Package, label: 'My Yields' },
+            { id: 'assistant', icon: BrainCircuit, label: 'AI Advisor' },
+            { id: 'market', icon: Globe, label: 'Portal', action: () => navigate('/marketplace') }
+          ].map(it => (
+            <button key={it.id} onClick={() => it.action ? it.action() : setActiveTab(it.id as any)} className={cn("w-full flex items-center gap-4 px-6 py-5 rounded-2xl font-bold text-sm transition-all", activeTab === it.id ? "bg-brand-primary text-white shadow-xl" : "text-gray-400 hover:text-brand-primary")}>
+              <it.icon className="size-5" /> {it.label}
+            </button>
+          ))}
+        </nav>
+        <div className="mt-auto border-t pt-8 space-y-4">
+          <div className="flex items-center gap-4 p-3 bg-brand-bg/50 rounded-2xl">
+             <div className="size-10 rounded-xl bg-brand-primary/10 flex items-center justify-center"><User className="text-brand-primary" /></div>
+             <p className="font-bold text-xs truncate text-brand-primary">{profile?.name || user?.email}</p>
+          </div>
+          <button onClick={logout} className="w-full text-red-500 font-bold text-xs uppercase p-4 hover:bg-red-50 rounded-2xl">Sign Out</button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-grow p-4 md:p-8 space-y-8 overflow-y-auto h-screen">
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-bold text-brand-primary tracking-tight">Farmer Dashboard.</h1>
-            <p className="text-gray-500 text-sm italic font-medium">Welcome back, {profile?.name || "Farmer"}</p>
-          </div>
-          <button 
-            onClick={() => setActiveTab('inventory')}
-            className="btn-primary flex items-center gap-2"
-          >
-            <Plus className="size-4" />
-            Add New Product
-          </button>
-        </header>
-
+      {/* Main */}
+      <main className="flex-grow p-12 overflow-y-auto">
         <AnimatePresence mode="wait">
           {activeTab === 'overview' && (
-            <motion.div 
-              key="overview"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="space-y-8"
-            >
-              {/* Verification Alert */}
-              {!profile?.isVerified && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-8 bg-orange-50 border border-orange-200 rounded-[2.5rem] flex items-start gap-6 shadow-sm"
-                >
-                  <div className="bg-orange-100 p-4 rounded-2xl flex-shrink-0">
-                    <AlertTriangle className="text-orange-600 size-8" />
+            <motion.div key="overview" initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="space-y-16">
+              <header><h2 className="text-5xl font-playfair italic text-brand-primary mb-2">Farmer Overview.</h2><p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Live metrics from your farm</p></header>
+              <div className="grid grid-cols-4 gap-8">
+                {[
+                  { l: "Stock Count", v: products.length, i: Package, c: "text-emerald-600", b: "bg-emerald-50" },
+                  { l: "Inquiries", v: "24", i: Users, c: "text-blue-600", b: "bg-blue-50" },
+                  { l: "Revenue Est.", v: "₹45k", i: TrendingUp, c: "text-amber-600", b: "bg-amber-50" },
+                  { l: "Quality Index", v: "4.9", i: ShieldCheck, c: "text-purple-600", b: "bg-purple-50" }
+                ].map((s, i) => (
+                  <div key={i} className={cn("p-10 rounded-[2.5rem] border shadow-sm", s.b)}>
+                    <div className="flex justify-between mb-8"><s.i className={cn("size-8", s.c)} /><span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{s.l}</span></div>
+                    <p className={cn("text-4xl font-playfair font-bold italic", s.c)}>{s.v}</p>
                   </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-orange-900 italic">Account Pending Verification</h3>
-                    <p className="text-sm text-orange-800/70 leading-relaxed font-medium">
-                      Your profile is being reviewed by our agricultural experts. 
-                      You can set up your store and list products, but they will be 
-                      invisible to customers until you are verified. This usually takes 24-48 hours.
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-
-              {profile?.isVerified && (
-                 <div className="inline-flex items-center gap-2 px-4 py-1 bg-green-50 text-green-700 text-xs font-bold uppercase rounded-full border border-green-100">
-                   <ShieldCheck className="size-3" />
-                   Verified Farm Account
-                 </div>
-              )}
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {stats.map((stat, i) => (
-                  <motion.div 
-                    key={i}
-                    whileHover={{ y: -5 }}
-                    className="editorial-card space-y-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="p-3 bg-brand-bg rounded-xl">
-                        <stat.icon className="size-5 text-brand-primary" />
-                      </div>
-                      {stat.trend && (
-                        <span className="text-[10px] font-bold text-green-500 bg-green-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                          <ArrowUpRight className="size-2" />
-                          {stat.trend}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-brand-primary tracking-tighter">{stat.value}</p>
-                      <p className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{stat.label}</p>
-                    </div>
-                  </motion.div>
                 ))}
               </div>
-
-              {/* Charts and Tables */}
-              <div className="grid lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 editorial-card space-y-8">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xl font-bold text-brand-primary italic">Revenue Overview</h3>
-                    <select className="text-xs font-bold bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 outline-none">
-                      <option>Last 7 Days</option>
-                      <option>Last 30 Days</option>
-                    </select>
-                  </div>
-                  <div className="h-[350px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={data}>
-                        <defs>
-                          <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#4CAF50" stopOpacity={0.1}/>
-                            <stop offset="95%" stopColor="#4CAF50" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#999', fontWeight: 600}} />
-                        <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#999', fontWeight: 600}} />
-                        <Tooltip 
-                          contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)' }}
-                        />
-                        <Area type="monotone" dataKey="sales" stroke="#4CAF50" strokeWidth={4} fillOpacity={1} fill="url(#colorSales)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="editorial-card space-y-8">
-                  <h3 className="text-xl font-bold text-brand-primary italic">Your Registered Products</h3>
-                  <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2">
-                    {products.length > 0 ? (
-                      products.map((prod: any, i: number) => (
-                        <div key={prod.id || i} className="flex items-center justify-between group p-3 hover:bg-gray-50 rounded-2xl transition-colors border border-transparent hover:border-brand-primary/5">
-                          <div className="flex items-center gap-4">
-                            <div className="size-12 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                               <img src={prod.imageUrl} alt={prod.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                            </div>
-                            <div>
-                               <p className="font-bold text-brand-primary text-sm">{prod.name}</p>
-                               <div className="flex items-center gap-3">
-                                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{prod.category}</p>
-                                 {prod.location && (
-                                   <div className="flex items-center gap-1 text-[10px] font-bold text-brand-secondary/70 uppercase">
-                                     <span className="size-1 bg-brand-secondary/50 rounded-full" />
-                                     {prod.location}
-                                   </div>
-                                 )}
-                               </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                             <p className="font-bold text-brand-primary text-sm">{formatCurrency(prod.price)}</p>
-                             <p className="text-[10px] font-bold text-green-600 bg-green-50 px-2 rounded-full inline-block">{prod.stockAmount}</p>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="py-12 text-center space-y-4">
-                         <div className="bg-brand-bg size-12 mx-auto rounded-full flex items-center justify-center">
-                            <ShoppingBag className="size-5 text-brand-primary/30" />
+              <div className="grid lg:grid-cols-3 gap-12">
+                 <div className="lg:col-span-2 editorial-card h-[500px]">
+                    <h3 className="text-2xl font-playfair italic text-brand-primary mb-10">Revenue Analytics</h3>
+                    <ResponsiveContainer width="100%" height="80%"><AreaChart data={revenueData}><CartesianGrid strokeDasharray="3 3" vertical={false} /><XAxis dataKey="name" /><YAxis /><Tooltip /><Area type="monotone" dataKey="revenue" stroke="#2D6A4F" fill="#2D6A4F22" strokeWidth={3} /></AreaChart></ResponsiveContainer>
+                 </div>
+                 <div className="editorial-card h-[500px] flex flex-col">
+                    <h3 className="text-2xl font-playfair italic text-brand-primary mb-8">Recent Activity</h3>
+                    <div className="flex-grow overflow-y-auto space-y-6">
+                       {products.slice(0, 5).map(p => (
+                         <div key={p.id} className="flex gap-4 items-center bg-brand-bg/30 p-3 rounded-2xl">
+                           <img src={p.imageUrl} className="size-12 rounded-xl object-cover" />
+                           <div className="min-w-0"><p className="text-sm font-bold truncate text-brand-primary">{p.name}</p><p className="text-[10px] text-gray-400">{p.stockAmount}</p></div>
+                           <p className="ml-auto font-bold text-xs">{formatCurrency(p.price)}</p>
                          </div>
-                         <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">No products listed yet.</p>
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={() => setActiveTab('inventory')} className="w-full btn-secondary text-xs uppercase tracking-widest py-4 bg-brand-bg/50 border-brand-primary/10">Add More Yield</button>
-                </div>
+                       ))}
+                    </div>
+                 </div>
               </div>
             </motion.div>
           )}
 
           {activeTab === 'inventory' && (
-            <motion.div 
-              key="inventory"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="space-y-8"
-            >
-              <div className="grid lg:grid-cols-2 gap-8">
-                {/* Upload Form */}
-                <div className="editorial-card space-y-8 !p-10 shadow-xl">
-                  <div className="flex items-center gap-4 border-b border-brand-primary/5 pb-6">
-                    <div className="size-12 bg-brand-primary text-white rounded-2xl flex items-center justify-center">
-                       <Plus className="size-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-brand-primary italic">List Your Yield.</h3>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none mt-1">Direct to Customer</p>
-                    </div>
-                  </div>
-
-                  <form className="space-y-6" onSubmit={handleUpload}>
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Product Name</label>
-                        <input 
-                          type="text" 
-                          required
-                          value={newProduct.name}
-                          onChange={e => setNewProduct({...newProduct, name: e.target.value})}
-                          placeholder="e.g. Organic Red Tomatoes" 
-                          className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Price (₹ per unit)</label>
-                          <input 
-                            type="number" 
-                            step="0.01"
-                            required
-                            value={newProduct.price}
-                            onChange={e => setNewProduct({...newProduct, price: e.target.value})}
-                            placeholder="40" 
-                            className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
-                          />
+             <motion.div key="inv" initial={{opacity:0}} animate={{opacity:1}} className="space-y-12">
+                <header className="flex justify-between"><h2 className="text-4xl font-playfair italic text-brand-primary">Inventory Vault.</h2><button onClick={() => {resetForm(); setActiveTab('add');}} className="btn-primary px-8">List New Harvest</button></header>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                   {products.map(p => (
+                     <div key={p.id} className="editorial-card !p-0 overflow-hidden group">
+                        <div className="aspect-square relative overflow-hidden">
+                           <img src={p.imageUrl} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
+                              <div className="flex gap-2">
+                                 <button onClick={() => startEdit(p)} className="flex-grow bg-white py-2 rounded-xl text-[10px] font-bold uppercase text-brand-primary">Edit</button>
+                                 <button onClick={() => deleteProduct(p.id)} className="bg-red-500 text-white size-10 flex items-center justify-center rounded-xl"><Trash2 size={16} /></button>
+                              </div>
+                           </div>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Stock Amount</label>
-                          <input 
-                            type="text" 
-                            required
-                            value={newProduct.stock}
-                            onChange={e => setNewProduct({...newProduct, stock: e.target.value})}
-                            placeholder="100kg" 
-                            className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
-                          />
+                        <div className="p-6 space-y-4">
+                           <div className="flex justify-between"><h4 className="font-bold text-brand-primary text-sm truncate">{p.name}</h4><p className="font-playfair italic text-brand-primary flex-shrink-0">{formatCurrency(p.price)}</p></div>
+                           <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 truncate"><MapPin size={12} className="text-brand-secondary flex-shrink-0" /> {p.location}</div>
                         </div>
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Location Details</label>
-                         <input 
-                            type="text" 
-                            required
-                            value={newProduct.location}
-                            onChange={e => setNewProduct({...newProduct, location: e.target.value})}
-                            placeholder="e.g. Village Name, District, State" 
-                            className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
-                          />
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Category</label>
-                         <select 
-                            value={newProduct.category}
-                            onChange={e => setNewProduct({...newProduct, category: e.target.value})}
-                            className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium outline-none"
-                         >
-                            <option>Vegetables</option>
-                            <option>Fruits</option>
-                            <option>Grains</option>
-                            <option>Dairy</option>
-                         </select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-bold uppercase tracking-widest text-brand-primary/60 ml-1">Product Image URL</label>
-                        <input 
-                          type="text" 
-                          required
-                          value={newProduct.imageUrl}
-                          onChange={e => setNewProduct({...newProduct, imageUrl: e.target.value})}
-                          placeholder="https://images.unsplash.com/photo-..." 
-                          className="w-full px-5 py-4 bg-brand-bg/50 border border-brand-primary/5 rounded-2xl focus:outline-none focus:ring-2 focus:ring-brand-secondary/30 transition-all font-medium" 
-                        />
-                      </div>
-                    </div>
-                    <button 
-                      type="submit"
-                      disabled={uploading}
-                      className="w-full btn-primary py-5 rounded-2xl flex items-center justify-center gap-3 font-bold text-[10px] uppercase tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 duration-200 disabled:opacity-50"
-                    >
-                       {uploading ? <Loader2 className="animate-spin size-4" /> : "Upload Harvest to Market"} <Send className="size-4" />
-                    </button>
-                  </form>
-                </div>
-
-                {/* Live Preview / Empty State */}
-                <div className="space-y-8">
-                   <div className="editorial-card !p-0 overflow-hidden group border-dashed border-gray-400">
-                      <div className="aspect-video bg-gray-100 flex flex-col items-center justify-center text-gray-400 space-y-4">
-                         <ShoppingBag className="size-12 opacity-20" />
-                         <p className="text-[10px] font-bold uppercase tracking-widest">Live Listing Preview</p>
-                      </div>
-                      <div className="p-8 space-y-4">
-                         <div className="h-6 bg-gray-100 rounded-lg w-2/3 animate-pulse" />
-                         <div className="h-4 bg-gray-50 rounded-lg w-1/2 animate-pulse" />
-                         <div className="pt-4 flex justify-between items-center">
-                            <div className="h-8 bg-gray-100 rounded-full w-20 animate-pulse" />
-                            <div className="size-10 bg-gray-100 rounded-full animate-pulse" />
-                         </div>
-                      </div>
-                   </div>
-                   
-                   <div className="bg-brand-bg p-8 rounded-[2.5rem] border border-brand-primary/5 space-y-4">
-                      <h4 className="font-bold text-brand-primary italic">Pro Tip.</h4>
-                      <p className="text-sm text-gray-500 leading-relaxed italic">
-                        High-quality photos from your actual field increase customer trust by **40%**. Make sure to mention if your crop is organic!
-                      </p>
-                   </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === 'assistant' && (
-             <motion.div 
-               key="assistant"
-               initial={{ opacity: 0, scale: 0.98 }}
-               animate={{ opacity: 1, scale: 1 }}
-               exit={{ opacity: 0, scale: 0.98 }}
-               className="h-[calc(100vh-14rem)] flex flex-col gap-6"
-             >
-                <div className="editorial-card flex-grow flex flex-col !p-0 overflow-hidden bg-white/40">
-                   <div className="p-8 border-b border-brand-primary/5 bg-brand-primary/5 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                         <div className="size-12 bg-brand-primary text-brand-bg rounded-2xl flex items-center justify-center shadow-lg">
-                            <BrainCircuit className="size-6" />
-                         </div>
-                         <div>
-                            <h2 className="text-2xl font-bold text-brand-primary italic">Neural Farm Assistant.</h2>
-                            <p className="text-[10px] text-brand-secondary font-bold uppercase tracking-widest">Always Connected</p>
-                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                         <span className="p-2 bg-white rounded-lg border border-brand-primary/5 text-xs font-bold text-gray-400 uppercase tracking-widest">Diagnostic v2.4</span>
-                      </div>
-                   </div>
-
-                   <div 
-                    ref={scrollRef}
-                    className="flex-grow overflow-y-auto p-12 space-y-8"
-                   >
-                     {assistantMessages.map((m, i) => (
-                       <motion.div 
-                        key={i}
-                        initial={{ opacity: 0, x: m.role === 'user' ? 20 : -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className={cn(
-                          "flex gap-6 max-w-[80%]",
-                          m.role === 'user' ? "ml-auto flex-row-reverse" : ""
-                        )}
-                       >
-                          <div className={cn(
-                            "size-10 rounded-xl flex items-center justify-center shrink-0 shadow-md",
-                            m.role === 'user' ? "bg-brand-secondary text-white" : "bg-white text-brand-primary border border-brand-primary/10"
-                          )}>
-                            {m.role === 'user' ? <User className="size-5" /> : <BrainCircuit className="size-5" />}
-                          </div>
-                          <div className={cn(
-                            "p-6 rounded-[2rem] text-sm leading-relaxed shadow-sm",
-                            m.role === 'user' ? "bg-brand-primary text-white rounded-tr-none" : "bg-white text-gray-800 rounded-tl-none border border-brand-primary/5"
-                          )}>
-                             <div className="prose prose-sm prose-green max-w-none">
-                                <ReactMarkdown>{m.content}</ReactMarkdown>
-                             </div>
-                          </div>
-                       </motion.div>
-                     ))}
-                     {isTyping && (
-                       <div className="flex gap-4 items-center animate-pulse text-xs font-bold text-brand-secondary uppercase tracking-[0.2em] ml-16">
-                          <Loader2 className="animate-spin size-4" />
-                          Processing Neural Response...
-                       </div>
-                     )}
-                   </div>
-
-                   <div className="p-8 bg-white border-t border-brand-primary/5">
-                      <div className="flex gap-4 p-2 bg-brand-bg/50 rounded-3xl border border-brand-primary/5">
-                         <input 
-                            type="text"
-                            value={assistantInput}
-                            onChange={(e) => setAssistantInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAssistantSend()}
-                            placeholder="Ask about crop health, market price predictions, or platform logistics..."
-                            className="flex-grow p-4 bg-transparent outline-none text-sm font-medium"
-                         />
-                         <button 
-                            onClick={handleAssistantSend}
-                            disabled={!assistantInput.trim() || isTyping}
-                            className="size-14 bg-brand-primary text-white rounded-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl disabled:opacity-50"
-                         >
-                            <Send className="size-6" />
-                         </button>
-                      </div>
-                   </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-6">
-                   {[
-                     { label: "Blight Diagnosis", icon: Leaf },
-                     { label: "Price Prediction", icon: Sparkles },
-                     { label: "Order Logistics", icon: List }
-                   ].map((suggestion, i) => (
-                     <button 
-                      key={i}
-                      onClick={() => setAssistantInput(suggestion.label)}
-                      className="p-4 bg-white/50 border border-brand-primary/5 rounded-2xl text-[10px] uppercase font-bold text-gray-400 tracking-widest hover:border-brand-secondary hover:text-brand-primary transition-all flex items-center justify-center gap-3"
-                     >
-                        <suggestion.icon className="size-3" />
-                        {suggestion.label}
-                     </button>
+                     </div>
                    ))}
                 </div>
              </motion.div>
           )}
+
+          {activeTab === 'add' && (
+             <motion.div key="add" initial={{scale:0.95}} animate={{scale:1}} className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12">
+                <form onSubmit={handleSubmit} className="editorial-card space-y-8">
+                   <h2 className="text-3xl font-playfair italic text-brand-primary border-b pb-6">{editingId ? 'Edit Harvest' : 'List New Yield'}</h2>
+                   <div className="grid grid-cols-2 gap-6">
+                      <div className="col-span-2 space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Full Product Name</label><input required className="w-full p-4 bg-brand-bg rounded-2xl outline-none border border-transparent focus:border-brand-primary/10" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} /></div>
+                      <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Category</label><select className="w-full p-4 bg-brand-bg rounded-2xl" value={newProduct.category} onChange={e => setNewProduct({...newProduct, category: e.target.value})}>{categories.map(c => <option key={c}>{c}</option>)}</select></div>
+                      <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Unit</label><select className="w-full p-4 bg-brand-bg rounded-2xl" value={newProduct.unit} onChange={e => setNewProduct({...newProduct, unit: e.target.value})}>{units.map(u => <option key={u}>{u}</option>)}</select></div>
+                      <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Price (₹)</label><input type="number" required className="w-full p-4 bg-brand-bg rounded-2xl" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} /></div>
+                      <div className="space-y-2"><label className="text-[10px] font-bold uppercase tracking-widest opacity-60">Stock</label><input required className="w-full p-4 bg-brand-bg rounded-2xl" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} /></div>
+                   </div>
+                   <div className="space-y-2 pt-6 border-t font-playfair italic text-lg text-brand-primary flex justify-between items-center">Origin Info <button type="button" onClick={detectLocation} className="text-[10px] font-sans not-italic uppercase tracking-widest text-brand-secondary flex items-center gap-1"><Navigation size={12}/> Detect GPS</button></div>
+                   <div className="grid grid-cols-3 gap-4">
+                      <input placeholder="Village" className="p-4 bg-brand-bg rounded-2xl text-sm" value={newProduct.location.village} onChange={e => setNewProduct({...newProduct, location: {...newProduct.location, village: e.target.value}})} />
+                      <input placeholder="District" className="p-4 bg-brand-bg rounded-2xl text-sm" value={newProduct.location.district} onChange={e => setNewProduct({...newProduct, location: {...newProduct.location, district: e.target.value}})} />
+                      <input placeholder="State" className="p-4 bg-brand-bg rounded-2xl text-sm" value={newProduct.location.state} onChange={e => setNewProduct({...newProduct, location: {...newProduct.location, state: e.target.value}})} />
+                   </div>
+                   <textarea rows={3} placeholder="Describe your yield..." className="w-full p-4 bg-brand-bg rounded-2xl resize-none" value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} />
+                   <button disabled={uploading} className="w-full btn-primary py-5 shadow-2xl flex items-center justify-center gap-4">{uploading ? <Loader2 className="animate-spin" /> : <Send />} {editingId ? 'Save Changes' : 'Confirm Listing'}</button>
+                </form>
+
+                <div className="space-y-8">
+                   <div className="editorial-card !p-0 overflow-hidden relative group rounded-[3rem]">
+                      <div className="aspect-[4/3] bg-brand-bg/50 flex flex-col items-center justify-center relative cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                         {newProduct.imageUrl ? <img src={newProduct.imageUrl} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : <div className="text-center opacity-30 space-y-4"><Camera size={64}/><p className="text-[10px] font-bold uppercase tracking-widest">Yield Photo Required</p></div>}
+                         <input type="file" hidden ref={fileInputRef} onChange={handleImageUpload} />
+                         {newProduct.imageUrl && (
+                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                              <button type="button" onClick={handleAnalyzeHarvest} disabled={analyzing} className="bg-brand-primary text-white p-4 rounded-full shadow-2xl flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest">{analyzing ? <Loader2 className="animate-spin"/> : <BrainCircuit/>} AI Scan</button>
+                           </div>
+                         )}
+                         {aiReport && <div className="absolute top-6 right-6 bg-brand-secondary text-white px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest animate-pulse shadow-2xl">AI Certified</div>}
+                      </div>
+                      <div className="p-10 space-y-4">
+                         <h3 className="text-3xl font-playfair italic text-brand-primary">{newProduct.name || 'Untitled Harvest'}</h3>
+                         <div className="flex justify-between border-t pt-4"><p className="text-3xl font-bold text-brand-primary tracking-tighter">{formatCurrency(parseFloat(newProduct.price || '0'))}</p><p className="text-xs font-bold text-gray-400 mt-2 uppercase tracking-widest">per {newProduct.unit}</p></div>
+                      </div>
+                   </div>
+                </div>
+             </motion.div>
+          )}
+
+          {activeTab === 'assistant' && (
+             <motion.div key="assistant" className="h-[700px] editorial-card !p-0 overflow-hidden flex flex-col bg-white">
+                <div className="p-8 border-b bg-brand-primary/5 flex items-center gap-4"><div className="size-12 bg-brand-primary text-white rounded-2xl flex items-center justify-center"><BrainCircuit/></div><div><h3 className="text-2xl font-playfair italic text-brand-primary">AgriNexus AI.</h3><p className="text-[10px] font-bold uppercase text-brand-secondary">Neural Farm Intelligence</p></div></div>
+                <div ref={scrollRef} className="flex-grow p-8 space-y-6 overflow-y-auto custom-scrollbar">
+                   {assistantMessages.map((m, i) => (
+                     <div key={i} className={cn("flex gap-4 max-w-[80%]", m.role === 'user' ? "ml-auto flex-row-reverse" : "")}>
+                        <div className={cn("size-8 rounded-lg flex items-center justify-center shrink-0 shadow", m.role === 'user' ? "bg-brand-secondary text-white" : "bg-brand-bg text-brand-primary")}>{m.role === 'user' ? <User size={16}/> : <BrainCircuit size={16}/>}</div>
+                        <div className={cn("p-6 rounded-[2rem] text-sm", m.role === 'user' ? "bg-brand-primary text-white rounded-tr-none" : "bg-white border rounded-tl-none")}><ReactMarkdown>{m.content}</ReactMarkdown></div>
+                     </div>
+                   ))}
+                   {isTyping && <div className="p-4 bg-brand-bg rounded-full w-fit flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-brand-secondary ml-12 animate-pulse"><Loader2 className="animate-spin size-3"/> Thinking...</div>}
+                </div>
+                <div className="p-8 border-t"><div className="flex gap-4 bg-brand-bg p-2 rounded-[2rem] border focus-within:ring-2 ring-brand-secondary/20 transition-all"><input className="flex-grow bg-transparent p-4 outline-none font-medium" value={assistantInput} onChange={e => setAssistantInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAssistantSend()} placeholder="Ask AgriNexus about crop health, pricing, or orders..." /> <button onClick={handleAssistantSend} className="size-14 bg-brand-primary text-white rounded-full flex items-center justify-center shadow-xl"><Send/></button></div></div>
+             </motion.div>
+          )}
         </AnimatePresence>
       </main>
+
+      {/* SUCCESS TOASTS */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div initial={{opacity:0, y:50}} animate={{opacity:1, y:0}} exit={{opacity:0, scale:0.9}} className="fixed bottom-12 right-12 z-[100] px-8 py-4 bg-brand-primary text-white rounded-3xl shadow-[0_20px_50px_rgba(45,106,79,0.3)] flex items-center gap-4 font-bold text-sm italic backdrop-blur-xl border border-brand-primary/20">
+            <div className="bg-brand-secondary p-1 rounded-full text-brand-primary"><Sparkles size={14}/></div>
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
